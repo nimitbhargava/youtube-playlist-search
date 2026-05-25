@@ -343,6 +343,38 @@
     }
   }
 
+  // Copy a single chip's computed styles onto the search field so the
+  // sizing/chrome match exactly, regardless of YouTube's current chip
+  // dimensions or theme.
+  function mimicChipStyle(searchUI, chipCloud) {
+    const chip = chipCloud.querySelector(
+      'yt-chip-cloud-chip-renderer, yt-chip-cloud-chip-view-model, ' +
+      'tp-yt-paper-tab, [role="tab"]'
+    );
+    if (!chip) return;
+
+    const field = searchUI.querySelector('.ytps-field');
+    if (!field) return;
+
+    const cs = getComputedStyle(chip);
+    const rect = chip.getBoundingClientRect();
+    if (rect.height > 0) field.style.height = `${rect.height}px`;
+    if (cs.borderRadius) field.style.borderRadius = cs.borderRadius;
+    if (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+      field.style.background = cs.backgroundColor;
+    }
+    if (cs.borderColor) field.style.borderColor = cs.borderColor;
+    if (cs.borderStyle) field.style.borderStyle = cs.borderStyle;
+    if (cs.borderTopWidth) field.style.borderWidth = cs.borderTopWidth;
+
+    const input = searchUI.querySelector('.ytps-input');
+    if (input) {
+      if (cs.fontSize) input.style.fontSize = cs.fontSize;
+      if (cs.fontWeight) input.style.fontWeight = cs.fontWeight;
+      if (cs.color) input.style.color = cs.color;
+    }
+  }
+
   function findPopupChromeColor(popup) {
     const isOpaque = (s) =>
       s && s !== 'rgba(0, 0, 0, 0)' && s !== 'transparent' && !/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)/.test(s);
@@ -632,6 +664,13 @@
     searchUI.classList.add('ytps-page');
     insertPoint.parent.insertBefore(searchUI, insertPoint.before);
     applyAdaptiveTheme(searchUI, container);
+
+    // When sitting in the chip row, copy a real chip's exact dimensions
+    // and chrome so the search field reads as another chip.
+    if (!usedStructural) {
+      const chipCloud = findChipCloud();
+      if (chipCloud) mimicChipStyle(searchUI, chipCloud);
+    }
 
     console.info('[ytps] page search injected for', strategy.name);
 

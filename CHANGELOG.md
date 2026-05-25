@@ -2,6 +2,12 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] — 2026-05-26
+
+### Changed
+- Page search now mimics a real chip's computed styles at inject time: height, border-radius, background, border color/style/width, font size/weight/color are all copied from the first chip inside the chip cloud. This locks the search appearance to whatever sizing YouTube uses for chips, instead of guessing pixel values that drift as YouTube updates.
+- Container width: `max-width: 320px` → `width: 240px`. The search no longer dominates the chip row.
+
 ## [1.0.14] — 2026-05-26
 
 ### Fixed
