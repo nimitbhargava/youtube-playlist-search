@@ -2,6 +2,12 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] — 2026-05-26
+
+### Fixed
+- Typed text is white again. `mimicChipStyle` was copying the chip wrapper's computed `color` (often `black` — the visible chip text gets re-coloured to white by an inner descendant via cascade), turning typed input black. Drop the color copy entirely. The CSS default (`--yt-spec-text-primary`) is already correct.
+- Improved chip-element detection: also defer the style mirror to the next animation frame so the chip's own styles have fully resolved when we read them.
+
 ## [1.0.15] — 2026-05-26
 
 ### Changed

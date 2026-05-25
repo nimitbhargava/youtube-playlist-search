@@ -343,36 +343,65 @@
     }
   }
 
+  // Find the *visible chip pill* inside a chip-cloud wrapper. Many YouTube
+  // chip designs put the styled pill on an inner button/element, not on the
+  // ytd-*-renderer wrapper itself, so we look for the deepest descendant
+  // that has both rounded corners and a non-transparent background.
+  function findVisibleChip(chipCloud) {
+    const candidates = chipCloud.querySelectorAll(
+      'yt-chip-cloud-chip-renderer button, ' +
+        'yt-chip-cloud-chip-view-model button, ' +
+        'yt-chip-cloud-chip-renderer, yt-chip-cloud-chip-view-model, ' +
+        'tp-yt-paper-tab, button, [role="tab"], *'
+    );
+    for (const c of candidates) {
+      if (!isVisible(c)) continue;
+      const cs = getComputedStyle(c);
+      const rounded = parseFloat(cs.borderTopLeftRadius) > 0;
+      const opaque =
+        cs.backgroundColor &&
+        cs.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+        cs.backgroundColor !== 'transparent';
+      if (rounded && opaque) return c;
+    }
+    return null;
+  }
+
   // Copy a single chip's computed styles onto the search field so the
   // sizing/chrome match exactly, regardless of YouTube's current chip
-  // dimensions or theme.
+  // dimensions or theme. Deferred to the next frame so the chip's own
+  // styles have fully resolved when we read them.
   function mimicChipStyle(searchUI, chipCloud) {
-    const chip = chipCloud.querySelector(
-      'yt-chip-cloud-chip-renderer, yt-chip-cloud-chip-view-model, ' +
-      'tp-yt-paper-tab, [role="tab"]'
-    );
-    if (!chip) return;
+    requestAnimationFrame(() => {
+      const chip = findVisibleChip(chipCloud);
+      if (!chip) return;
 
-    const field = searchUI.querySelector('.ytps-field');
-    if (!field) return;
+      const field = searchUI.querySelector('.ytps-field');
+      if (!field) return;
 
-    const cs = getComputedStyle(chip);
-    const rect = chip.getBoundingClientRect();
-    if (rect.height > 0) field.style.height = `${rect.height}px`;
-    if (cs.borderRadius) field.style.borderRadius = cs.borderRadius;
-    if (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-      field.style.background = cs.backgroundColor;
-    }
-    if (cs.borderColor) field.style.borderColor = cs.borderColor;
-    if (cs.borderStyle) field.style.borderStyle = cs.borderStyle;
-    if (cs.borderTopWidth) field.style.borderWidth = cs.borderTopWidth;
+      const cs = getComputedStyle(chip);
+      const rect = chip.getBoundingClientRect();
+      if (rect.height > 0) field.style.height = `${rect.height}px`;
+      // Use the top-left radius and apply uniformly — chips are always symmetric.
+      if (cs.borderTopLeftRadius) {
+        field.style.borderRadius = cs.borderTopLeftRadius;
+      }
+      if (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+        field.style.background = cs.backgroundColor;
+      }
+      if (cs.borderColor) field.style.borderColor = cs.borderColor;
+      if (cs.borderStyle) field.style.borderStyle = cs.borderStyle;
+      if (cs.borderTopWidth) field.style.borderWidth = cs.borderTopWidth;
 
-    const input = searchUI.querySelector('.ytps-input');
-    if (input) {
-      if (cs.fontSize) input.style.fontSize = cs.fontSize;
-      if (cs.fontWeight) input.style.fontWeight = cs.fontWeight;
-      if (cs.color) input.style.color = cs.color;
-    }
+      // Don't mimic color — the chip wrapper's computed color is often black
+      // (the visible text gets re-set to white by an inner element via the
+      // cascade). The CSS default (--yt-spec-text-primary) is already right.
+      const input = searchUI.querySelector('.ytps-input');
+      if (input) {
+        if (cs.fontSize) input.style.fontSize = cs.fontSize;
+        if (cs.fontWeight) input.style.fontWeight = cs.fontWeight;
+      }
+    });
   }
 
   function findPopupChromeColor(popup) {
