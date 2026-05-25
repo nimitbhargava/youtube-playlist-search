@@ -5,12 +5,9 @@
   --ytps-muted: var(--yt-spec-text-secondary, rgba(255, 255, 255, 0.7));
   --ytps-field-bg: var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.08));
   --ytps-field-bg-focus: var(--yt-spec-general-background-b, rgba(255, 255, 255, 0.14));
-  --ytps-bg: var(
-    --yt-spec-menu-background,
-    var(--yt-spec-general-background-a,
-      var(--yt-spec-base-background, #1f1f1f)
-    )
-  );
+  /* Container is transparent so YouTube's popup chrome shows through — the
+     pill field below has its own background. Avoids the gray-strip mismatch
+     that came from trying to color-match the popup. */
   --ytps-font: "Roboto", "YouTube Sans", "Arial", sans-serif;
 
   display: block;
@@ -18,12 +15,11 @@
   font-family: var(--ytps-font);
   box-sizing: border-box;
 
-  /* Stay visible while the user scrolls the playlist list. Background covers
-     items that would otherwise show through. */
+  /* Stay visible while the user scrolls the playlist list. */
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--ytps-bg);
+  background: transparent;
 }
 
 .ytps-field {

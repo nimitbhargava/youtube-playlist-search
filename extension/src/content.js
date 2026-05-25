@@ -352,10 +352,11 @@
 
     // YouTube's iron-dropdown closes on outside clicks/focus. Stop those events
     // at the search container so the popup stays open when the user types.
+    // Bubble phase only — capture-phase stop would short-circuit the clear
+    // button before its own click handler can run.
     const stop = (e) => e.stopPropagation();
     for (const evt of ['mousedown', 'pointerdown', 'click', 'focusin', 'touchstart']) {
-      searchUI.addEventListener(evt, stop, true);
-      searchUI.addEventListener(evt, stop, false);
+      searchUI.addEventListener(evt, stop);
     }
 
     const applyFilter = () => {
@@ -485,14 +486,59 @@
     );
   }
 
+  // Structural fallback for the playlists feed: look inside the visible
+  // ytd-browse for any element with several homogeneous, visible, text-bearing
+  // children. The richest such grid is almost certainly the playlist grid,
+  // regardless of which custom-element wrapper YouTube is using this week.
+  function findStructuralPageGrid() {
+    const browse =
+      qs('ytd-browse[page-subtype="playlists"]:not([hidden])') ||
+      qs('ytd-browse:not([hidden])');
+    if (!browse) return null;
+
+    const all = browse.querySelectorAll('*');
+    let best = null;
+    let bestScore = 0;
+    for (const el of all) {
+      const children = Array.from(el.children).filter((c) => {
+        if (!isVisible(c)) return false;
+        const txt = (c.textContent || '').trim();
+        return txt.length > 0;
+      });
+      if (children.length < 3) continue;
+      const tagSet = new Set(children.map((c) => c.tagName));
+      if (tagSet.size > 2) continue;
+      const score = children.length * (tagSet.size === 1 ? 2 : 1);
+      if (score > bestScore) {
+        best = { container: el, items: children };
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+
   function injectIntoPage(strategy) {
     if (!strategy.matches()) return;
     if (qs(`[${PAGE_MARKER_ATTR}="${strategy.name}"]`)) return;
 
-    const container = strategy.findContainer();
-    if (!container) return;
+    let container = strategy.findContainer();
+    let insertPoint = container ? strategy.findInsertPoint() : null;
 
-    const insertPoint = strategy.findInsertPoint();
+    // Fall back to structural detection if explicit selectors failed.
+    if (!container || !insertPoint?.parent) {
+      const structural = findStructuralPageGrid();
+      if (structural) {
+        container = structural.container;
+        // Prefer to insert above the chip-cloud-like sibling if one is nearby;
+        // otherwise insert as the first child of the grid's parent.
+        const parent = container.parentElement;
+        if (parent) {
+          insertPoint = { parent, before: container };
+        }
+      }
+    }
+
+    if (!container) return;
     if (!insertPoint?.parent) return;
 
     const searchUI = buildSearchUI(strategy.placeholder, 'No matching playlists');
@@ -611,6 +657,51 @@
     console.log('[ytps] visible popups:', report);
     console.log('[ytps] playlist-related custom tags on page:', playlistTags);
     return { report, playlistTags };
+  };
+
+  // Diagnostic for the /feed/playlists page detection.
+  window.__ytps_debug_page = () => {
+    const strat = PAGE_STRATEGIES[0];
+    const browse =
+      document.querySelector('ytd-browse[page-subtype="playlists"]:not([hidden])') ||
+      document.querySelector('ytd-browse:not([hidden])');
+    const customTags = browse
+      ? Array.from(
+          new Set(
+            Array.from(browse.querySelectorAll('*'))
+              .filter((e) => e.tagName.includes('-'))
+              .map((e) => e.tagName.toLowerCase())
+          )
+        ).filter((t) =>
+          /(playlist|chip|grid|list-view|lockup|rich|item|section|tab|feed|filter)/.test(
+            t
+          )
+        )
+      : [];
+    const structural = findStructuralPageGrid();
+    const report = {
+      url: location.href,
+      pathname: location.pathname,
+      strategyMatches: strat.matches(),
+      browseFound: !!browse,
+      browseSubtype: browse?.getAttribute('page-subtype') || null,
+      explicitContainer: strat.findContainer()?.tagName.toLowerCase() || null,
+      explicitInsertPoint: (() => {
+        const ip = strat.findInsertPoint();
+        if (!ip) return null;
+        return {
+          parent: ip.parent?.tagName.toLowerCase(),
+          before: ip.before?.tagName?.toLowerCase(),
+        };
+      })(),
+      structuralContainer: structural?.container.tagName.toLowerCase() || null,
+      structuralItemCount: structural?.items.length || 0,
+      structuralItemTag: structural?.items[0]?.tagName.toLowerCase() || null,
+      injected: !!document.querySelector(`[${PAGE_MARKER_ATTR}="feed-playlists"]`),
+      interestingTags: customTags,
+    };
+    console.log('[ytps] page debug:', report);
+    return report;
   };
 
   // --- Bootstrapping ------------------------------------------------------

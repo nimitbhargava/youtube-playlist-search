@@ -2,6 +2,16 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] — 2026-05-26
+
+### Fixed
+- Clear button (×) now actually clears the search. The previous version stopped propagation in the *capture* phase on the search container, which short-circuited the button's own click handler before it could fire. Stop propagation in the bubble phase only — events still reach descendants normally, and YouTube's outside-click handler is still blocked on the way up.
+- Removed the dark-gray strip around the search field. Container is now `background: transparent` so YouTube's popup chrome shows through directly. The pill input still has its own background and stays visually distinct.
+
+### Added
+- Structural fallback for the `/feed/playlists` search: if the explicit container/insert-point selectors fail, walk the visible `ytd-browse` for any element with multiple homogeneous, visible, text-bearing children and insert above it. Survives renamed grid wrappers without needing per-version selector updates.
+- `window.__ytps_debug_page()` console helper. Returns explicit + structural detection results for the playlists feed page — paste the output if the search still doesn't appear.
+
 ## [1.0.6] — 2026-05-25
 
 ### Fixed
