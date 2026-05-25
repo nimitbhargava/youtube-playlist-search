@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] — 2026-05-26
+
+### Fixed
+- Search field on `/feed/playlists` no longer lands inside the grid as a stray cell next to the first card. Two changes: (a) `findChipCloud()` now also picks up `role="tablist"` and inferred tablists (parents of multiple `role="tab"` siblings), so the search inserts immediately after the chip row; (b) `escapeCellularLayout()` runs on every insert point and walks the parent chain past any grid/flex layout, landing the search at a block-level row above the grid.
+
 ## [1.0.7] — 2026-05-26
 
 ### Fixed

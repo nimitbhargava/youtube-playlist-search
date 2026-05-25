@@ -59,20 +59,14 @@
         return null;
       },
       findInsertPoint: () => {
-        // Prefer above the filter chips.
-        const chipCandidates = [
-          'ytd-browse[page-subtype="playlists"]:not([hidden]) yt-chip-cloud-renderer',
-          'ytd-browse[page-subtype="playlists"]:not([hidden]) yt-chip-cloud-view-model',
-          'ytd-browse[page-subtype="playlists"]:not([hidden]) ytd-feed-filter-chip-bar-renderer',
-          'ytd-browse:not([hidden]) yt-chip-cloud-renderer',
-          'ytd-browse:not([hidden]) yt-chip-cloud-view-model',
-          'ytd-browse:not([hidden]) ytd-feed-filter-chip-bar-renderer',
-        ];
-        for (const sel of chipCandidates) {
-          const el = qs(sel);
-          if (el?.parentElement) {
-            return { parent: el.parentElement, before: el };
-          }
+        const chips = findChipCloud();
+        if (chips?.parentElement) {
+          // Insert AFTER the chip cloud (between chips and grid). Use
+          // nextElementSibling as the `before` so we land just below.
+          return {
+            parent: chips.parentElement,
+            before: chips.nextElementSibling,
+          };
         }
         // Fall back to start of grid contents.
         const grid =
@@ -486,6 +480,57 @@
     );
   }
 
+  // Locate the filter chip row above a feed grid. Tries known tags, then
+  // falls back to role="tablist" / multiple role="tab" siblings.
+  function findChipCloud() {
+    const browse =
+      qs('ytd-browse[page-subtype="playlists"]:not([hidden])') ||
+      qs('ytd-browse:not([hidden])');
+    if (!browse) return null;
+
+    const explicit = [
+      'yt-chip-cloud-renderer',
+      'yt-chip-cloud-view-model',
+      'ytd-feed-filter-chip-bar-renderer',
+      '[role="tablist"]',
+    ];
+    for (const sel of explicit) {
+      const el = browse.querySelector(sel);
+      if (el && isVisible(el)) return el;
+    }
+    const tabs = Array.from(browse.querySelectorAll('[role="tab"]')).filter(
+      isVisible
+    );
+    if (tabs.length >= 2 && tabs[0].parentElement) {
+      // Confirm the tabs share a parent (= the tablist row).
+      const parent = tabs[0].parentElement;
+      const sameParent = tabs.filter((t) => t.parentElement === parent);
+      if (sameParent.length >= 2) return parent;
+    }
+    return null;
+  }
+
+  // Walk up from the chosen insertion point while the parent has a grid/flex
+  // layout. Without this the search field gets distributed as one of the
+  // grid cells next to a playlist card on /feed/playlists.
+  function escapeCellularLayout(insertPoint) {
+    let { parent, before } = insertPoint;
+    let depth = 0;
+    while (depth < 6 && parent.parentElement) {
+      const cs = getComputedStyle(parent);
+      const cellular =
+        cs.display === 'grid' ||
+        cs.display === 'inline-grid' ||
+        cs.display === 'flex' ||
+        cs.display === 'inline-flex';
+      if (!cellular) break;
+      before = parent;
+      parent = parent.parentElement;
+      depth++;
+    }
+    return { parent, before };
+  }
+
   // Structural fallback for the playlists feed: look inside the visible
   // ytd-browse for any element with several homogeneous, visible, text-bearing
   // children. The richest such grid is almost certainly the playlist grid,
@@ -524,22 +569,24 @@
     let container = strategy.findContainer();
     let insertPoint = container ? strategy.findInsertPoint() : null;
 
-    // Fall back to structural detection if explicit selectors failed.
+    // Structural fallback if explicit selectors didn't work.
     if (!container || !insertPoint?.parent) {
       const structural = findStructuralPageGrid();
       if (structural) {
         container = structural.container;
-        // Prefer to insert above the chip-cloud-like sibling if one is nearby;
-        // otherwise insert as the first child of the grid's parent.
-        const parent = container.parentElement;
-        if (parent) {
-          insertPoint = { parent, before: container };
-        }
+        insertPoint = {
+          parent: container.parentElement,
+          before: container,
+        };
       }
     }
 
     if (!container) return;
     if (!insertPoint?.parent) return;
+
+    // Make sure the search lands in a normal block-level row, not as one of
+    // the grid cells next to a playlist card.
+    insertPoint = escapeCellularLayout(insertPoint);
 
     const searchUI = buildSearchUI(strategy.placeholder, 'No matching playlists');
     searchUI.setAttribute(PAGE_MARKER_ATTR, strategy.name);
