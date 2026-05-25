@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] — 2026-05-26
+
+### Changed
+- Playlists-feed search no longer adds a wide vertical gap. `escapeCellularLayout` now runs only when the structural-grid fallback was used. When the chip cloud was found, the search stays in the chip row's parent so it can sit next to the chips (in the same flex row) instead of being pushed up into a grandparent block. Added `flex-shrink: 0` and dropped the bottom padding so the search doesn't push the chip row down.
+
 ## [1.0.9] — 2026-05-26
 
 ### Changed

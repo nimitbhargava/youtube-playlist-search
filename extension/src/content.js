@@ -568,6 +568,7 @@
 
     let container = strategy.findContainer();
     let insertPoint = container ? strategy.findInsertPoint() : null;
+    let usedStructural = false;
 
     // Structural fallback if explicit selectors didn't work.
     if (!container || !insertPoint?.parent) {
@@ -578,15 +579,20 @@
           parent: container.parentElement,
           before: container,
         };
+        usedStructural = true;
       }
     }
 
     if (!container) return;
     if (!insertPoint?.parent) return;
 
-    // Make sure the search lands in a normal block-level row, not as one of
-    // the grid cells next to a playlist card.
-    insertPoint = escapeCellularLayout(insertPoint);
+    // Only escape cellular layout when we fell back to the structural grid —
+    // there, the parent IS the unwanted card grid and the search would become
+    // a cell. When the chip cloud was found, stay in its container so the
+    // search sits in the same row as the chips.
+    if (usedStructural) {
+      insertPoint = escapeCellularLayout(insertPoint);
+    }
 
     const searchUI = buildSearchUI(strategy.placeholder, 'No matching playlists');
     searchUI.setAttribute(PAGE_MARKER_ATTR, strategy.name);

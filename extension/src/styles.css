@@ -110,8 +110,10 @@
 .ytps-search-container.ytps-page {
   position: static;
   background: transparent;
-  padding: 0 0 16px;
+  padding: 0;
+  margin: 0 8px 0 0;
   max-width: 320px;
+  flex-shrink: 0;
 }
 
 .ytps-search-container.ytps-page .ytps-field {
