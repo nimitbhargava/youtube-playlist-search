@@ -105,25 +105,37 @@
   display: none !important;
 }
 
-/* Page-level search (e.g. /feed/playlists): not in a scrollable popup, no sticky. */
+/* Page-level search (e.g. /feed/playlists): sized to match the chip row it
+   sits next to — shorter, narrower, less rounded than the modal version. */
 .ytps-search-container.ytps-page {
   position: static;
   background: transparent;
-  padding: 16px 0 12px;
-  max-width: 480px;
+  padding: 0 0 16px;
+  max-width: 320px;
 }
 
 .ytps-search-container.ytps-page .ytps-field {
-  padding: 10px 14px;
-  border-radius: 20px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(
+    --yt-spec-badge-chip-background,
+    var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.1))
+  );
+  border: 1px solid var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
+}
+
+.ytps-search-container.ytps-page .ytps-field:focus-within {
+  border-color: var(--yt-spec-text-primary, rgba(255, 255, 255, 0.6));
+  background: var(--yt-spec-general-background-b, rgba(255, 255, 255, 0.14));
 }
 
 .ytps-search-container.ytps-page .ytps-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .ytps-search-container.ytps-page .ytps-input {
-  font-size: 15px;
-  line-height: 22px;
+  font-size: 14px;
+  line-height: 20px;
 }

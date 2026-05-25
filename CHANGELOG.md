@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] — 2026-05-26
+
+### Changed
+- Playlists-feed search now matches YouTube's chip-row visual weight: 32 px tall, 320 px max-width, 8 px border-radius (was a 40 px-tall 480 px pill). Background and border use `--yt-spec-badge-chip-background` / `--yt-spec-10-percent-layer` so the field reads as a sibling of the filter chips rather than a header-style search bar.
+
 ## [1.0.8] — 2026-05-26
 
 ### Fixed
