@@ -147,14 +147,16 @@
   // --- Structural modal detection (tag-name-independent) -----------------
   // Find any visible popup whose top text matches a known header phrase.
   // Then locate its list of items by structural inference.
+  const POPUP_SELECTOR =
+    'tp-yt-paper-dialog, ytd-popup-container, ytd-menu-popup-renderer, ' +
+    'tp-yt-iron-dropdown, yt-sheet-view-model, ' +
+    '[role="dialog"], [role="menu"], [role="listbox"]';
+
   function findStructuralModal(root = document) {
-    const popupSelector =
-      'tp-yt-paper-dialog, ytd-popup-container, ytd-menu-popup-renderer, ' +
-      'tp-yt-iron-dropdown, [role="dialog"], [role="menu"], [role="listbox"]';
     const popups = root.querySelectorAll
-      ? Array.from(root.querySelectorAll(popupSelector))
+      ? Array.from(root.querySelectorAll(POPUP_SELECTOR))
       : [];
-    if (root.matches && root.matches(popupSelector)) popups.unshift(root);
+    if (root.matches && root.matches(POPUP_SELECTOR)) popups.unshift(root);
 
     for (const popup of popups) {
       if (!isVisible(popup)) continue;
@@ -479,6 +481,16 @@
     });
   }
 
+  let modalScanScheduled = false;
+  function scheduleModalScan() {
+    if (modalScanScheduled) return;
+    modalScanScheduled = true;
+    requestAnimationFrame(() => {
+      modalScanScheduled = false;
+      scanModals(document);
+    });
+  }
+
   function scanAll(root = document) {
     scanModals(root);
     scanPages();
@@ -486,12 +498,9 @@
 
   // --- Diagnostic helper exposed on window -------------------------------
   window.__ytps_debug = () => {
-    const popups = Array.from(
-      document.querySelectorAll(
-        'tp-yt-paper-dialog, ytd-popup-container, ytd-menu-popup-renderer, ' +
-          'tp-yt-iron-dropdown, [role="dialog"], [role="menu"], [role="listbox"]'
-      )
-    ).filter(isVisible);
+    const popups = Array.from(document.querySelectorAll(POPUP_SELECTOR)).filter(
+      isVisible
+    );
 
     const report = popups.map((p) => {
       const header = getPopupHeader(p);
@@ -531,13 +540,11 @@
   // --- Bootstrapping ------------------------------------------------------
   scanAll();
 
-  const rootObserver = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        scanModals(node);
-      }
-    }
+  // Debounced full-doc scan on every mutation. Per-node scanning misses popups
+  // that mount inside long-lived wrappers (e.g. yt-sheet-view-model added into
+  // an existing tp-yt-iron-dropdown), because the wrapper isn't an added node.
+  const rootObserver = new MutationObserver(() => {
+    scheduleModalScan();
     schedulePageScan();
   });
 

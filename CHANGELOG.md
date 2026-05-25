@@ -2,6 +2,12 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] — 2026-05-25
+
+### Fixed
+- Detect "Save to…" popups when YouTube mounts the body (`yt-sheet-view-model`) into a pre-existing `tp-yt-iron-dropdown` wrapper. The MutationObserver now triggers a debounced full-document modal scan on any DOM change instead of only scanning freshly-added nodes, so popups inserted into long-lived wrappers no longer get missed.
+- Added `yt-sheet-view-model` to the popup-detection selector set.
+
 ## [1.0.1] — 2026-05-25
 
 ### Fixed
