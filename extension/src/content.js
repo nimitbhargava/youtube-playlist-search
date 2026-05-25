@@ -443,10 +443,13 @@
     attachFilter(
       searchUI,
       {
+        // Do NOT filter by isVisible — items we've hidden ourselves would be
+        // excluded from subsequent reads, so clearing the filter wouldn't
+        // restore them.
         getItems: () =>
           itemSelector
-            ? Array.from(list.querySelectorAll(itemSelector)).filter(isVisible)
-            : Array.from(list.children).filter(isVisible),
+            ? Array.from(list.querySelectorAll(itemSelector))
+            : Array.from(list.children),
         getLabel: getStructuralLabel,
         isAlwaysVisible: isCreatePlaylistItem,
         observeNode: list,

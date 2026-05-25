@@ -2,6 +2,14 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] — 2026-05-25
+
+### Fixed
+- Clearing the search field now restores all items. Previously, structural mode's `getItems()` filtered out elements failing `isVisible()`, so items we had hidden with `display:none` became invisible to subsequent reads and stayed hidden forever.
+
+### Changed
+- Search field spacing tightened and balanced: container padding `8px 16px 4px` → `4px 8px 12px`, field padding `8px 12px` → `10px 14px`, gap `8px` → `10px`, border-radius `18px` → `20px`. Field now aligns horizontally with the items below it.
+
 ## [1.0.3] — 2026-05-25
 
 ### Fixed
