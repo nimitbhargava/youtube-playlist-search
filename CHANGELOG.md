@@ -2,6 +2,16 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] — 2026-05-25
+
+### Fixed
+- Popup no longer closes when clicking the search input. `mousedown`, `pointerdown`, `click`, `focusin`, and `touchstart` are now stopped at the search container so YouTube's iron-dropdown outside-click handler ignores them.
+- Empty-search state correctly shows all items. The structural list detector now prefers semantic item selectors (`yt-lockup-view-model`, `[role="option"]`, etc.) before falling back to the homogeneous-children heuristic, which previously could pick the wrong container and visually swallow the playlist items.
+- Input text is no longer dim. Dropped the color-mirroring path in the adaptive theme — it was probing the first available text node, which often had a secondary color. The CSS variable defaults (`--yt-spec-text-primary`) already pick the correct color per theme.
+
+### Changed
+- Inject log now reports which selector pattern matched (e.g. `yt-lockup-view-model` vs `(homogeneous)`), so misfires are easier to spot.
+
 ## [1.0.2] — 2026-05-25
 
 ### Fixed

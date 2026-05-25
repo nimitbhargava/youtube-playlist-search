@@ -192,9 +192,49 @@
     return all[0] || '';
   }
 
+  // Item patterns we recognize as a playlist row. Most-specific first.
+  const ITEM_PATTERNS = [
+    'ytd-playlist-add-to-option-renderer',
+    'ytmusic-playlist-add-to-option-renderer',
+    'yt-lockup-view-model',
+    'yt-list-item-view-model',
+    '[role="menuitemcheckbox"]',
+    '[role="option"]',
+    '[role="menuitem"]',
+  ];
+
   // Find the element inside `popup` that holds the list of playlist rows.
-  // Heuristic: an element with the most homogeneous, visible, text-bearing children.
+  // Strategy: try semantic item patterns first (more reliable). Only fall back
+  // to the homogeneous-children heuristic if nothing semantic matched.
   function findListInPopup(popup) {
+    for (const pattern of ITEM_PATTERNS) {
+      const items = Array.from(popup.querySelectorAll(pattern)).filter(isVisible);
+      if (items.length < 2) continue;
+      const byParent = new Map();
+      for (const item of items) {
+        const p = item.parentElement;
+        if (!p) continue;
+        if (!byParent.has(p)) byParent.set(p, []);
+        byParent.get(p).push(item);
+      }
+      let bestList = null;
+      let bestCount = 0;
+      for (const [parent, kids] of byParent) {
+        if (kids.length > bestCount) {
+          bestList = parent;
+          bestCount = kids.length;
+        }
+      }
+      if (bestList && bestCount >= 2) {
+        return { list: bestList, items: byParent.get(bestList), pattern };
+      }
+    }
+    return findHomogeneousList(popup);
+  }
+
+  // Fallback: pick the element with the most homogeneous, visible, text-bearing
+  // children. Less reliable — items risk picking up unrelated containers.
+  function findHomogeneousList(popup) {
     const all = popup.querySelectorAll('*');
     let best = null;
     let bestScore = 0;
@@ -203,7 +243,6 @@
       const children = Array.from(el.children);
       if (children.length < 2) continue;
 
-      // Require children to be visible and have at least one short text label.
       const validChildren = children.filter((c) => {
         if (!isVisible(c)) return false;
         const txt = (c.textContent || '').trim();
@@ -211,14 +250,12 @@
       });
       if (validChildren.length < 2) continue;
 
-      // Prefer homogeneous tag types (a list of similar items).
       const tagSet = new Set(validChildren.map((c) => c.tagName));
       if (tagSet.size > 2) continue;
 
-      // Score: # of valid children, bonus when fully homogeneous.
       const score = validChildren.length * (tagSet.size === 1 ? 2 : 1);
       if (score > bestScore) {
-        best = { list: el, items: validChildren };
+        best = { list: el, items: validChildren, pattern: '(homogeneous)' };
         bestScore = score;
       }
     }
@@ -265,23 +302,17 @@
     return wrap;
   }
 
-  // Mirror computed colors from the host so the search field blends in even
-  // when YouTube renames CSS variables. Runs once per inject.
+  // Mirror only the font family from the host. Earlier versions also mirrored
+  // computed color / background, but picking the wrong probe element (e.g. a
+  // secondary-color span) made the input text hard to read. The CSS variables
+  // (--yt-spec-text-primary etc.) already pick the right color per theme.
   function applyAdaptiveTheme(searchUI, scope) {
     try {
-      const probe = scope.querySelector(
-        'yt-formatted-string, #label, #video-title, span, div'
+      const heading = scope.querySelector(
+        'h1, h2, h3, [role="heading"], yt-formatted-string'
       );
-      const fieldBg = scope.querySelector(
-        '[role="option"], yt-chip-cloud-chip-renderer, yt-icon-button, button'
-      );
-      const cs = probe ? getComputedStyle(probe) : null;
-      const bgCs = fieldBg ? getComputedStyle(fieldBg) : null;
-      if (cs?.color) searchUI.style.setProperty('--ytps-fg', cs.color);
+      const cs = heading ? getComputedStyle(heading) : null;
       if (cs?.fontFamily) searchUI.style.setProperty('--ytps-font', cs.fontFamily);
-      if (bgCs?.backgroundColor && bgCs.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-        searchUI.style.setProperty('--ytps-field-bg', bgCs.backgroundColor);
-      }
     } catch {
       // Fall back to CSS defaults.
     }
@@ -291,6 +322,14 @@
     const input = searchUI.querySelector(`.${INPUT_CLASS}`);
     const clearBtn = searchUI.querySelector('.ytps-clear');
     const emptyState = searchUI.querySelector('.ytps-empty');
+
+    // YouTube's iron-dropdown closes on outside clicks/focus. Stop those events
+    // at the search container so the popup stays open when the user types.
+    const stop = (e) => e.stopPropagation();
+    for (const evt of ['mousedown', 'pointerdown', 'click', 'focusin', 'touchstart']) {
+      searchUI.addEventListener(evt, stop, true);
+      searchUI.addEventListener(evt, stop, false);
+    }
 
     const applyFilter = () => {
       const q = normalize(input.value);
@@ -375,11 +414,13 @@
     );
   }
 
-  function injectIntoStructural({ popup, list, items, header }) {
+  function injectIntoStructural({ popup, list, items, header, pattern }) {
     if (popup.querySelector(`.${CONTAINER_CLASS}`)) return;
 
-    const sample = items[0];
-    const itemTag = sample ? sample.tagName.toLowerCase() : '*';
+    // Re-query items so the filter operates on the same selector that found them,
+    // not just on `list.children` (the items may not be direct children).
+    const itemSelector =
+      pattern && pattern !== '(homogeneous)' ? pattern : null;
 
     const searchUI = buildSearchUI('Search your playlists', 'No matching playlists');
     searchUI.setAttribute(STRUCTURAL_MARKER_ATTR, '');
@@ -387,20 +428,25 @@
     applyAdaptiveTheme(searchUI, popup);
 
     console.info(
-      '[ytps] structural modal search injected. header:',
+      '[ytps] structural inject — header:',
       JSON.stringify(header),
-      'list:',
+      '| popup:',
+      popup.tagName.toLowerCase(),
+      '| list:',
       list.tagName.toLowerCase(),
-      'item tag:',
-      itemTag,
-      'item count:',
+      '| pattern:',
+      pattern,
+      '| items:',
       items.length
     );
 
     attachFilter(
       searchUI,
       {
-        getItems: () => Array.from(list.children).filter(isVisible),
+        getItems: () =>
+          itemSelector
+            ? Array.from(list.querySelectorAll(itemSelector)).filter(isVisible)
+            : Array.from(list.children).filter(isVisible),
         getLabel: getStructuralLabel,
         isAlwaysVisible: isCreatePlaylistItem,
         observeNode: list,
