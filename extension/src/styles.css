@@ -5,9 +5,13 @@
   --ytps-muted: var(--yt-spec-text-secondary, rgba(255, 255, 255, 0.7));
   --ytps-field-bg: var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.08));
   --ytps-field-bg-focus: var(--yt-spec-general-background-b, rgba(255, 255, 255, 0.14));
-  /* Container is transparent so YouTube's popup chrome shows through — the
-     pill field below has its own background. Avoids the gray-strip mismatch
-     that came from trying to color-match the popup. */
+  /* Container background mirrors the popup chrome (set inline by JS) so the
+     sticky search field stays opaque while items scroll beneath it.
+     Fallback is YouTube's menu-background design token, then a dark gray. */
+  --ytps-bg: var(
+    --yt-spec-menu-background,
+    var(--yt-spec-general-background-a, #1f1f1f)
+  );
   --ytps-font: "Roboto", "YouTube Sans", "Arial", sans-serif;
 
   display: block;
@@ -19,7 +23,7 @@
   position: sticky;
   top: 0;
   z-index: 5;
-  background: transparent;
+  background: var(--ytps-bg);
 }
 
 .ytps-field {

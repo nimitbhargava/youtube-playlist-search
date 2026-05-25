@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] — 2026-05-26
+
+### Fixed
+- Modal search container is opaque again. After 1.0.7 made it transparent to avoid a color-mismatch strip, the sticky search field stopped covering items that scrolled beneath it — playlists were visible through the field. Restore JS-side background mirroring, but with a smarter algorithm: check the popup element's own background first, then BFS *downward* to find a sizeable opaque descendant. This avoids the earlier bug where walking *upward* from a transparent popup wrapper overshot into the page background. CSS fallback chain runs through `--yt-spec-menu-background` → `--yt-spec-general-background-a` → `#1f1f1f` if the JS path finds nothing.
+
 ## [1.0.13] — 2026-05-26
 
 ### Changed

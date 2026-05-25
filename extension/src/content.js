@@ -322,11 +322,12 @@
     return wrap;
   }
 
-  // Mirror only the font family. Earlier versions also tried to mirror the
-  // popup's background, but walking up from a transparent popup wrapper
-  // overshot and picked the page background — close-but-not-matching color.
-  // The CSS uses YouTube's --yt-spec-menu-background design token instead,
-  // which matches the actual popup chrome regardless of theme.
+  // Mirror the popup's chrome background onto the search container so the
+  // sticky search field is opaque (covers items scrolling beneath it) and
+  // matches the popup color exactly (no gray-strip mismatch).
+  // Strategy: check the popup itself first; if it's transparent, walk DOWN
+  // looking for a sizeable opaque descendant. Avoids the earlier bug where
+  // walking UP overshot into the page background.
   function applyAdaptiveTheme(searchUI, scope) {
     try {
       const heading = scope.querySelector(
@@ -334,9 +335,41 @@
       );
       const cs = heading ? getComputedStyle(heading) : null;
       if (cs?.fontFamily) searchUI.style.setProperty('--ytps-font', cs.fontFamily);
+
+      const bg = findPopupChromeColor(scope);
+      if (bg) searchUI.style.setProperty('--ytps-bg', bg);
     } catch {
       // Fall back to CSS defaults.
     }
+  }
+
+  function findPopupChromeColor(popup) {
+    const isOpaque = (s) =>
+      s && s !== 'rgba(0, 0, 0, 0)' && s !== 'transparent' && !/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)/.test(s);
+
+    // The popup itself.
+    const popupCs = getComputedStyle(popup);
+    if (isOpaque(popupCs.backgroundColor)) return popupCs.backgroundColor;
+
+    // BFS descendants, prefer wide elements close to the popup root.
+    const queue = [{ el: popup, depth: 0 }];
+    while (queue.length) {
+      const { el, depth } = queue.shift();
+      if (depth > 4) continue;
+      if (el !== popup) {
+        const cs = getComputedStyle(el);
+        if (isOpaque(cs.backgroundColor)) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width >= 200 && rect.height >= 60) {
+            return cs.backgroundColor;
+          }
+        }
+      }
+      for (const child of el.children) {
+        queue.push({ el: child, depth: depth + 1 });
+      }
+    }
+    return null;
   }
 
   function attachFilter(searchUI, ctx, opts = {}) {
