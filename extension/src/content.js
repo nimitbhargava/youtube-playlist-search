@@ -42,20 +42,46 @@
       name: 'feed-playlists',
       placeholder: 'Search your playlists',
       matches: () => /^\/feed\/playlists\/?$/.test(location.pathname),
-      findContainer: () =>
-        qs('ytd-browse[page-subtype="playlists"]:not([hidden]) ytd-rich-grid-renderer') ||
-        qs('ytd-browse:not([hidden]) ytd-rich-grid-renderer'),
-      findInsertPoint: () => {
-        const chips =
-          qs('ytd-browse[page-subtype="playlists"]:not([hidden]) yt-chip-cloud-renderer') ||
-          qs('ytd-browse:not([hidden]) yt-chip-cloud-renderer');
-        if (chips?.parentElement) {
-          return { parent: chips.parentElement, before: chips };
+      findContainer: () => {
+        // Try known container tags in order. YouTube renames these over time.
+        const candidates = [
+          'ytd-browse[page-subtype="playlists"]:not([hidden]) ytd-rich-grid-renderer',
+          'ytd-browse[page-subtype="playlists"]:not([hidden]) ytd-section-list-renderer',
+          'ytd-browse[page-subtype="playlists"]:not([hidden]) yt-section-list-view-model',
+          'ytd-browse:not([hidden]) ytd-rich-grid-renderer',
+          'ytd-browse:not([hidden]) ytd-section-list-renderer',
+          'ytd-browse[page-subtype="playlists"]:not([hidden])',
+        ];
+        for (const sel of candidates) {
+          const el = qs(sel);
+          if (el) return el;
         }
-        const grid = qs('ytd-browse:not([hidden]) ytd-rich-grid-renderer');
-        const contents = grid?.querySelector('#contents');
-        if (contents) return { parent: contents.parentElement, before: contents };
-        if (grid) return { parent: grid, before: grid.firstChild };
+        return null;
+      },
+      findInsertPoint: () => {
+        // Prefer above the filter chips.
+        const chipCandidates = [
+          'ytd-browse[page-subtype="playlists"]:not([hidden]) yt-chip-cloud-renderer',
+          'ytd-browse[page-subtype="playlists"]:not([hidden]) yt-chip-cloud-view-model',
+          'ytd-browse[page-subtype="playlists"]:not([hidden]) ytd-feed-filter-chip-bar-renderer',
+          'ytd-browse:not([hidden]) yt-chip-cloud-renderer',
+          'ytd-browse:not([hidden]) yt-chip-cloud-view-model',
+          'ytd-browse:not([hidden]) ytd-feed-filter-chip-bar-renderer',
+        ];
+        for (const sel of chipCandidates) {
+          const el = qs(sel);
+          if (el?.parentElement) {
+            return { parent: el.parentElement, before: el };
+          }
+        }
+        // Fall back to start of grid contents.
+        const grid =
+          qs('ytd-browse:not([hidden]) ytd-rich-grid-renderer') ||
+          qs('ytd-browse:not([hidden]) ytd-section-list-renderer');
+        if (grid) {
+          const contents = grid.querySelector('#contents') || grid;
+          return { parent: contents, before: contents.firstChild };
+        }
         return null;
       },
       findItems: (container) =>
@@ -302,10 +328,11 @@
     return wrap;
   }
 
-  // Mirror the font family + popup background. Text color is left to the CSS
-  // variable defaults — probing arbitrary spans made the input dim.
-  // The background is needed so the sticky search field covers items that
-  // would otherwise show through when the user scrolls.
+  // Mirror only the font family. Earlier versions also tried to mirror the
+  // popup's background, but walking up from a transparent popup wrapper
+  // overshot and picked the page background — close-but-not-matching color.
+  // The CSS uses YouTube's --yt-spec-menu-background design token instead,
+  // which matches the actual popup chrome regardless of theme.
   function applyAdaptiveTheme(searchUI, scope) {
     try {
       const heading = scope.querySelector(
@@ -313,25 +340,9 @@
       );
       const cs = heading ? getComputedStyle(heading) : null;
       if (cs?.fontFamily) searchUI.style.setProperty('--ytps-font', cs.fontFamily);
-
-      const bg = findOpaqueBackground(scope);
-      if (bg) searchUI.style.setProperty('--ytps-bg', bg);
     } catch {
       // Fall back to CSS defaults.
     }
-  }
-
-  // Walk up from `el` until we find an ancestor with a non-transparent background.
-  // Returns its computed backgroundColor, or null if none found before body.
-  function findOpaqueBackground(el) {
-    let cur = el;
-    while (cur && cur.nodeType === 1 && cur !== document.body) {
-      const cs = getComputedStyle(cur);
-      const bg = cs.backgroundColor;
-      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
-      cur = cur.parentElement;
-    }
-    return null;
   }
 
   function attachFilter(searchUI, ctx, opts = {}) {
@@ -622,4 +633,15 @@
   document.addEventListener('yt-navigate-start', () => {
     document.querySelectorAll(`[${PAGE_MARKER_ATTR}]`).forEach((el) => el.remove());
   });
+
+  // Safety net: every 500 ms re-run scans. The MutationObserver catches most
+  // popup/page changes, but YouTube sometimes mounts content in batched ways
+  // or behind attribute toggles that the observer misses. The poll keeps the
+  // search field reliable without spending more than ~1ms per tick.
+  setInterval(() => {
+    if (document.querySelector(POPUP_SELECTOR)) {
+      scanModals(document);
+    }
+    scanPages();
+  }, 500);
 })();

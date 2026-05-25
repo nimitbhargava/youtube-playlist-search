@@ -2,6 +2,15 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] — 2026-05-25
+
+### Fixed
+- Sticky search background now matches the popup chrome. Dropped the JS-side `findOpaqueBackground` walk-up, which sometimes overshot the transparent popup wrapper and adopted the page background. CSS now cascades through `--yt-spec-menu-background` → `--yt-spec-general-background-a` → `--yt-spec-base-background` → a darker hardcoded fallback (`#1f1f1f`).
+- Search field appears reliably on `youtube.com/feed/playlists`. The container and chip-cloud detectors now try several alternate tag names (`ytd-section-list-renderer`, `yt-section-list-view-model`, `yt-chip-cloud-view-model`, `ytd-feed-filter-chip-bar-renderer`) before falling back to the page root, so a renamed YouTube wrapper no longer suppresses injection.
+
+### Added
+- 500 ms safety-net poll that re-runs modal and page scans. The MutationObserver catches most popup mounts, but YouTube occasionally batches DOM updates behind attribute toggles or re-renders the popup body after my initial inject. The poll keeps the search field reliable without measurable CPU cost.
+
 ## [1.0.5] — 2026-05-25
 
 ### Added

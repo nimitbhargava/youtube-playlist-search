@@ -5,7 +5,12 @@
   --ytps-muted: var(--yt-spec-text-secondary, rgba(255, 255, 255, 0.7));
   --ytps-field-bg: var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.08));
   --ytps-field-bg-focus: var(--yt-spec-general-background-b, rgba(255, 255, 255, 0.14));
-  --ytps-bg: var(--yt-spec-menu-background, #282828);
+  --ytps-bg: var(
+    --yt-spec-menu-background,
+    var(--yt-spec-general-background-a,
+      var(--yt-spec-base-background, #1f1f1f)
+    )
+  );
   --ytps-font: "Roboto", "YouTube Sans", "Arial", sans-serif;
 
   display: block;
