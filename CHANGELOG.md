@@ -2,6 +2,12 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] — 2026-05-25
+
+### Added
+- Search field is now sticky at the top of the popup. Scrolling through a long playlist list keeps the field visible so the user can refine or clear their search without scrolling back up. The page-level search on `/feed/playlists` stays static (not in a scroll container).
+- Adaptive theme now mirrors the popup's actual background color (walking up the ancestor chain until a non-transparent background is found), so the sticky field blends in regardless of YouTube's CSS-variable naming.
+
 ## [1.0.4] — 2026-05-25
 
 ### Fixed

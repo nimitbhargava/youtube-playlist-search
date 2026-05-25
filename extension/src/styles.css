@@ -1,16 +1,24 @@
 .ytps-search-container {
   /* Defaults — overridden by --yt-spec-* vars when available, then by
-     adaptive theme JS which mirrors computed colors from the modal. */
+     adaptive theme JS which reads the popup's actual background. */
   --ytps-fg: var(--yt-spec-text-primary, #fff);
   --ytps-muted: var(--yt-spec-text-secondary, rgba(255, 255, 255, 0.7));
   --ytps-field-bg: var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.08));
   --ytps-field-bg-focus: var(--yt-spec-general-background-b, rgba(255, 255, 255, 0.14));
+  --ytps-bg: var(--yt-spec-menu-background, #282828);
   --ytps-font: "Roboto", "YouTube Sans", "Arial", sans-serif;
 
   display: block;
   padding: 4px 8px 12px;
   font-family: var(--ytps-font);
   box-sizing: border-box;
+
+  /* Stay visible while the user scrolls the playlist list. Background covers
+     items that would otherwise show through. */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--ytps-bg);
 }
 
 .ytps-field {
@@ -96,8 +104,10 @@
   display: none !important;
 }
 
-/* Page-level search (e.g. /feed/playlists) — wider field, more breathing room. */
+/* Page-level search (e.g. /feed/playlists): not in a scrollable popup, no sticky. */
 .ytps-search-container.ytps-page {
+  position: static;
+  background: transparent;
   padding: 16px 0 12px;
   max-width: 480px;
 }

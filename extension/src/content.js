@@ -302,10 +302,10 @@
     return wrap;
   }
 
-  // Mirror only the font family from the host. Earlier versions also mirrored
-  // computed color / background, but picking the wrong probe element (e.g. a
-  // secondary-color span) made the input text hard to read. The CSS variables
-  // (--yt-spec-text-primary etc.) already pick the right color per theme.
+  // Mirror the font family + popup background. Text color is left to the CSS
+  // variable defaults — probing arbitrary spans made the input dim.
+  // The background is needed so the sticky search field covers items that
+  // would otherwise show through when the user scrolls.
   function applyAdaptiveTheme(searchUI, scope) {
     try {
       const heading = scope.querySelector(
@@ -313,9 +313,25 @@
       );
       const cs = heading ? getComputedStyle(heading) : null;
       if (cs?.fontFamily) searchUI.style.setProperty('--ytps-font', cs.fontFamily);
+
+      const bg = findOpaqueBackground(scope);
+      if (bg) searchUI.style.setProperty('--ytps-bg', bg);
     } catch {
       // Fall back to CSS defaults.
     }
+  }
+
+  // Walk up from `el` until we find an ancestor with a non-transparent background.
+  // Returns its computed backgroundColor, or null if none found before body.
+  function findOpaqueBackground(el) {
+    let cur = el;
+    while (cur && cur.nodeType === 1 && cur !== document.body) {
+      const cs = getComputedStyle(cur);
+      const bg = cs.backgroundColor;
+      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+      cur = cur.parentElement;
+    }
+    return null;
   }
 
   function attachFilter(searchUI, ctx, opts = {}) {
