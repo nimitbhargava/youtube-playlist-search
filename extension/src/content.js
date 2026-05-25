@@ -5,8 +5,11 @@
   const INPUT_CLASS = 'ytps-input';
   const HIDDEN_CLASS = 'ytps-hidden';
   const PAGE_MARKER_ATTR = 'data-ytps-page';
+  const STRUCTURAL_MARKER_ATTR = 'data-ytps-structural';
 
   // --- Modal strategies: the "Save to playlist" popup --------------------
+  // These match the old YouTube design. When YouTube ships new markup, the
+  // structural detector below takes over — it doesn't need explicit selectors.
   const MODAL_STRATEGIES = [
     {
       modal: 'ytd-add-to-playlist-renderer',
@@ -20,6 +23,17 @@
       item: 'ytmusic-playlist-add-to-option-renderer',
       label: '#label, yt-formatted-string',
     },
+  ];
+
+  // Header phrases YouTube uses for the playlist popup. The structural
+  // detector matches any visible popup whose top text starts with one of
+  // these — works regardless of the custom element tag name.
+  const HEADER_PHRASES = [
+    'save to',
+    'save video to',
+    'save to playlist',
+    'add to playlist',
+    'add video to playlist',
   ];
 
   // --- Page strategies: full pages with playlist grids -------------------
@@ -80,16 +94,28 @@
       const text = el && (el.getAttribute('title') || el.textContent || '').trim();
       if (text) return text;
     }
+    return getStructuralLabel(item);
+  }
+
+  function getStructuralLabel(item) {
+    // Try common label-bearing elements first.
     const candidates = [
       item.querySelector('#label'),
+      item.querySelector('#video-title'),
+      item.querySelector('yt-formatted-string[title]'),
       item.querySelector('yt-formatted-string'),
-      item.querySelector('[id*="label" i]'),
+      item.querySelector('[id*="title" i]'),
+      item.querySelector('[class*="title" i]'),
+      item.querySelector('h3'),
+      item.querySelector('h4'),
     ].filter(Boolean);
     for (const c of candidates) {
-      const t = (c.getAttribute('title') || c.textContent || '').trim();
-      if (t) return t;
+      const text = (c.getAttribute('title') || c.textContent || '').trim();
+      if (text && text.length < 200) return text.split('\n')[0].trim();
     }
-    return (item.textContent || '').trim();
+    // Fallback: first non-empty text line of the item.
+    const text = (item.textContent || '').trim();
+    return text.split('\n').map((s) => s.trim()).find((s) => s.length > 0) || '';
   }
 
   function getPageLabel(item) {
@@ -114,30 +140,87 @@
     if (!item) return false;
     if (item.id && /create|new/i.test(item.id)) return true;
     if (item.matches?.('#create-playlist-button, [id*="create" i]')) return true;
-    const txt = (item.textContent || '').trim().toLowerCase();
-    return /(new|create)\s+playlist/.test(txt);
+    const txt = normalize(item.textContent || '');
+    return /^(\+\s*)?(new|create)\s+playlist/.test(txt);
   }
 
-  function findGenericModal(root = document) {
-    const candidates = root.querySelectorAll(
-      '[id="playlists"], [aria-label*="playlist" i], [aria-labelledby*="playlist" i]'
-    );
-    for (const c of candidates) {
-      if (!isVisible(c)) continue;
-      const items = c.querySelectorAll(
-        '[role="option"], [role="menuitemcheckbox"], [role="checkbox"]'
-      );
-      if (items.length >= 2) {
-        return {
-          modal:
-            c.closest('tp-yt-paper-dialog, [role="dialog"], ytd-popup-container') ||
-            c.parentElement ||
-            c,
-          list: c,
-        };
-      }
+  // --- Structural modal detection (tag-name-independent) -----------------
+  // Find any visible popup whose top text matches a known header phrase.
+  // Then locate its list of items by structural inference.
+  function findStructuralModal(root = document) {
+    const popupSelector =
+      'tp-yt-paper-dialog, ytd-popup-container, ytd-menu-popup-renderer, ' +
+      'tp-yt-iron-dropdown, [role="dialog"], [role="menu"], [role="listbox"]';
+    const popups = root.querySelectorAll
+      ? Array.from(root.querySelectorAll(popupSelector))
+      : [];
+    if (root.matches && root.matches(popupSelector)) popups.unshift(root);
+
+    for (const popup of popups) {
+      if (!isVisible(popup)) continue;
+      if (popup.querySelector(`.${CONTAINER_CLASS}`)) continue;
+      const header = getPopupHeader(popup);
+      const headerNorm = normalize(header);
+      if (!HEADER_PHRASES.some((p) => headerNorm.startsWith(p))) continue;
+
+      const listInfo = findListInPopup(popup);
+      if (!listInfo) continue;
+
+      return { popup, header, ...listInfo };
     }
     return null;
+  }
+
+  function getPopupHeader(popup) {
+    // Heuristic: the first short text node near the top of the popup.
+    const headingCandidates = popup.querySelectorAll(
+      'h1, h2, h3, h4, [role="heading"], yt-formatted-string, span, div'
+    );
+    for (const el of headingCandidates) {
+      if (!isVisible(el)) continue;
+      const text = (el.textContent || '').trim();
+      if (!text) continue;
+      if (text.length > 80) continue;
+      const lines = text.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (lines.length !== 1) continue;
+      return lines[0];
+    }
+    // Fallback: first line of the popup's text.
+    const all = (popup.textContent || '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+    return all[0] || '';
+  }
+
+  // Find the element inside `popup` that holds the list of playlist rows.
+  // Heuristic: an element with the most homogeneous, visible, text-bearing children.
+  function findListInPopup(popup) {
+    const all = popup.querySelectorAll('*');
+    let best = null;
+    let bestScore = 0;
+
+    for (const el of all) {
+      const children = Array.from(el.children);
+      if (children.length < 2) continue;
+
+      // Require children to be visible and have at least one short text label.
+      const validChildren = children.filter((c) => {
+        if (!isVisible(c)) return false;
+        const txt = (c.textContent || '').trim();
+        return txt.length > 0 && txt.length < 300;
+      });
+      if (validChildren.length < 2) continue;
+
+      // Prefer homogeneous tag types (a list of similar items).
+      const tagSet = new Set(validChildren.map((c) => c.tagName));
+      if (tagSet.size > 2) continue;
+
+      // Score: # of valid children, bonus when fully homogeneous.
+      const score = validChildren.length * (tagSet.size === 1 ? 2 : 1);
+      if (score > bestScore) {
+        best = { list: el, items: validChildren };
+        bestScore = score;
+      }
+    }
+    return best;
   }
 
   // --- UI builders --------------------------------------------------------
@@ -227,7 +310,6 @@
 
     input.addEventListener('input', applyFilter);
 
-    // Stop YouTube's global hotkeys (k j l space /) from firing while typing.
     const swallow = (e) => e.stopPropagation();
     input.addEventListener('keydown', (e) => {
       swallow(e);
@@ -277,11 +359,47 @@
     list.parentElement?.insertBefore(searchUI, list);
     applyAdaptiveTheme(searchUI, modal);
 
+    console.info('[ytps] modal search injected via', modal.tagName.toLowerCase());
+
     attachFilter(
       searchUI,
       {
         getItems: () => Array.from(list.querySelectorAll(strategy.item)),
         getLabel: (item) => getModalLabel(item, strategy.label),
+        isAlwaysVisible: isCreatePlaylistItem,
+        observeNode: list,
+      },
+      { autoFocus: true }
+    );
+  }
+
+  function injectIntoStructural({ popup, list, items, header }) {
+    if (popup.querySelector(`.${CONTAINER_CLASS}`)) return;
+
+    const sample = items[0];
+    const itemTag = sample ? sample.tagName.toLowerCase() : '*';
+
+    const searchUI = buildSearchUI('Search your playlists', 'No matching playlists');
+    searchUI.setAttribute(STRUCTURAL_MARKER_ATTR, '');
+    list.parentElement?.insertBefore(searchUI, list);
+    applyAdaptiveTheme(searchUI, popup);
+
+    console.info(
+      '[ytps] structural modal search injected. header:',
+      JSON.stringify(header),
+      'list:',
+      list.tagName.toLowerCase(),
+      'item tag:',
+      itemTag,
+      'item count:',
+      items.length
+    );
+
+    attachFilter(
+      searchUI,
+      {
+        getItems: () => Array.from(list.children).filter(isVisible),
+        getLabel: getStructuralLabel,
         isAlwaysVisible: isCreatePlaylistItem,
         observeNode: list,
       },
@@ -305,6 +423,8 @@
     insertPoint.parent.insertBefore(searchUI, insertPoint.before);
     applyAdaptiveTheme(searchUI, container);
 
+    console.info('[ytps] page search injected for', strategy.name);
+
     attachFilter(
       searchUI,
       {
@@ -318,31 +438,30 @@
 
   // --- Scanners -----------------------------------------------------------
   function scanModals(root = document) {
+    let injected = false;
     for (const strat of MODAL_STRATEGIES) {
       if (root.matches && root.matches(strat.modal) && isVisible(root)) {
         injectIntoModal(root, strat);
+        injected = true;
       }
       const modals = root.querySelectorAll ? root.querySelectorAll(strat.modal) : [];
       for (const modal of modals) {
         if (!isVisible(modal)) continue;
         injectIntoModal(modal, strat);
+        injected = true;
       }
     }
-    const generic = findGenericModal(root);
-    if (generic) {
-      injectIntoModal(generic.modal, {
-        list: generic.list,
-        item: '[role="option"], [role="menuitemcheckbox"], [role="checkbox"]',
-        label: null,
-      });
-    }
+    if (injected) return;
+
+    // Structural fallback for redesigned popups.
+    const structural = findStructuralModal(root);
+    if (structural) injectIntoStructural(structural);
   }
 
   function scanPages() {
     for (const strat of PAGE_STRATEGIES) {
       injectIntoPage(strat);
     }
-    // Remove orphan page-search elements from pages no longer matching.
     document.querySelectorAll(`[${PAGE_MARKER_ATTR}]`).forEach((el) => {
       const name = el.getAttribute(PAGE_MARKER_ATTR);
       const strat = PAGE_STRATEGIES.find((s) => s.name === name);
@@ -365,6 +484,50 @@
     scanPages();
   }
 
+  // --- Diagnostic helper exposed on window -------------------------------
+  window.__ytps_debug = () => {
+    const popups = Array.from(
+      document.querySelectorAll(
+        'tp-yt-paper-dialog, ytd-popup-container, ytd-menu-popup-renderer, ' +
+          'tp-yt-iron-dropdown, [role="dialog"], [role="menu"], [role="listbox"]'
+      )
+    ).filter(isVisible);
+
+    const report = popups.map((p) => {
+      const header = getPopupHeader(p);
+      const list = findListInPopup(p);
+      return {
+        tag: p.tagName.toLowerCase(),
+        role: p.getAttribute('role'),
+        header,
+        headerMatches: HEADER_PHRASES.some((ph) =>
+          normalize(header).startsWith(ph)
+        ),
+        listFound: !!list,
+        listTag: list?.list.tagName.toLowerCase(),
+        itemTag: list?.items[0]?.tagName.toLowerCase(),
+        itemCount: list?.items.length,
+        firstItemText: list?.items[0]
+          ? (list.items[0].textContent || '').trim().slice(0, 80)
+          : null,
+      };
+    });
+
+    const customTags = new Set();
+    document.querySelectorAll('*').forEach((el) => {
+      if (el.tagName.includes('-') && isVisible(el)) {
+        customTags.add(el.tagName.toLowerCase());
+      }
+    });
+    const playlistTags = [...customTags].filter((t) =>
+      /playlist|save|add-to|lockup/.test(t)
+    );
+
+    console.log('[ytps] visible popups:', report);
+    console.log('[ytps] playlist-related custom tags on page:', playlistTags);
+    return { report, playlistTags };
+  };
+
   // --- Bootstrapping ------------------------------------------------------
   scanAll();
 
@@ -383,7 +546,6 @@
     subtree: true,
   });
 
-  // YouTube SPA navigation hooks.
   document.addEventListener('yt-navigate-finish', () => scanAll());
   document.addEventListener('yt-navigate-start', () => {
     document.querySelectorAll(`[${PAGE_MARKER_ATTR}]`).forEach((el) => el.remove());
