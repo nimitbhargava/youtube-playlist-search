@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] — 2026-05-26
+
+### Changed
+- Page search now sits at the **start** of the chip row, ahead of all filter chips, instead of at the end.
+
 ## [1.0.10] — 2026-05-26
 
 ### Changed

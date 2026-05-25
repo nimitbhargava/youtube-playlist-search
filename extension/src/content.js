@@ -61,11 +61,11 @@
       findInsertPoint: () => {
         const chips = findChipCloud();
         if (chips?.parentElement) {
-          // Insert AFTER the chip cloud (between chips and grid). Use
-          // nextElementSibling as the `before` so we land just below.
+          // Insert BEFORE the chip cloud so the search lands at the start of
+          // the chip row, ahead of all filter chips.
           return {
             parent: chips.parentElement,
-            before: chips.nextElementSibling,
+            before: chips,
           };
         }
         // Fall back to start of grid contents.
