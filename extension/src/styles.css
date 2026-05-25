@@ -1,0 +1,118 @@
+.ytps-search-container {
+  /* Defaults — overridden by --yt-spec-* vars when available, then by
+     adaptive theme JS which mirrors computed colors from the modal. */
+  --ytps-fg: var(--yt-spec-text-primary, #fff);
+  --ytps-muted: var(--yt-spec-text-secondary, rgba(255, 255, 255, 0.7));
+  --ytps-field-bg: var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.08));
+  --ytps-field-bg-focus: var(--yt-spec-general-background-b, rgba(255, 255, 255, 0.14));
+  --ytps-font: "Roboto", "YouTube Sans", "Arial", sans-serif;
+
+  display: block;
+  padding: 8px 16px 4px;
+  font-family: var(--ytps-font);
+  box-sizing: border-box;
+}
+
+.ytps-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 18px;
+  background: var(--ytps-field-bg);
+  transition: background-color 120ms ease;
+  border: 1px solid transparent;
+}
+
+.ytps-field:focus-within {
+  background: var(--ytps-field-bg-focus);
+  border-color: var(--yt-spec-text-disabled, rgba(255, 255, 255, 0.15));
+}
+
+.ytps-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: var(--ytps-muted);
+}
+
+.ytps-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ytps-fg);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  padding: 0;
+  margin: 0;
+}
+
+.ytps-input::placeholder {
+  color: var(--ytps-muted);
+  opacity: 1;
+}
+
+.ytps-clear {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--ytps-muted);
+  flex-shrink: 0;
+}
+
+.ytps-clear svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.ytps-clear:hover {
+  background: var(--ytps-field-bg-focus);
+  color: var(--ytps-fg);
+}
+
+.ytps-search-container.has-value .ytps-clear {
+  display: inline-flex;
+}
+
+.ytps-empty {
+  padding: 12px 4px 4px;
+  font-size: 13px;
+  color: var(--ytps-muted);
+  text-align: center;
+}
+
+.ytps-hidden {
+  display: none !important;
+}
+
+/* Page-level search (e.g. /feed/playlists) — wider field, more breathing room. */
+.ytps-search-container.ytps-page {
+  padding: 16px 0 12px;
+  max-width: 480px;
+}
+
+.ytps-search-container.ytps-page .ytps-field {
+  padding: 10px 14px;
+  border-radius: 20px;
+}
+
+.ytps-search-container.ytps-page .ytps-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.ytps-search-container.ytps-page .ytps-input {
+  font-size: 15px;
+  line-height: 22px;
+}

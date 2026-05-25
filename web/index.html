@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube Playlist Search · Native search for every place YouTube shows your playlists</title>
+    <meta
+      name="description"
+      content="Chrome extension that adds a real-time search field to YouTube's Save-to-playlist popup and the Playlists library page. Native design. Adapts to UI changes."
+    />
+    <meta property="og:title" content="YouTube Playlist Search" />
+    <meta
+      property="og:description"
+      content="Find your playlists, instantly. Real-time search in YouTube's Save-to-playlist popup and the Playlists library page."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="icon128.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">
+        <img src="icon128.png" alt="" width="28" height="28" />
+        <span>YouTube Playlist Search</span>
+      </a>
+      <nav>
+        <a href="#install">Install</a>
+        <a href="#how">How it works</a>
+        <a class="github" href="https://github.com/nimitbhargava/youtube-playlist-search" rel="noopener">
+          GitHub
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Chrome extension · Free · Open source</p>
+        <h1>Find your playlists, <em>instantly.</em></h1>
+        <p class="lede">
+          A tiny extension that adds a real-time search field everywhere YouTube
+          shows a list of your playlists — the Save-to popup, the Playlists library
+          page, and YouTube Music. Native design. Adapts when YouTube redesigns.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#install">Get the extension</a>
+          <a
+            class="btn ghost"
+            href="https://github.com/nimitbhargava/youtube-playlist-search"
+            rel="noopener"
+          >
+            View source
+          </a>
+        </div>
+
+        <div class="demo" aria-label="Demo of the search field filtering a list of playlists">
+          <div class="demo-window" role="img" aria-label="YouTube Save to playlist popup with a search field at the top">
+            <div class="demo-header">Save video to…</div>
+            <div class="demo-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.87 20.17l-5.59-5.59A6.97 6.97 0 0 0 17 10c0-3.87-3.13-7-7-7s-7 3.13-7 7 3.13 7 7 7c1.75 0 3.35-.65 4.58-1.71l5.59 5.59 1.7-1.71zM10 16c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"></path>
+              </svg>
+              <span class="demo-query" id="demoQuery"></span><span class="caret" aria-hidden="true"></span>
+            </div>
+            <ul class="demo-list" id="demoList">
+              <li><span class="check"></span>Music I Love</li>
+              <li><span class="check"></span>Liked videos</li>
+              <li><span class="check checked"></span>Watch later</li>
+              <li><span class="check"></span>Science w Nimit</li>
+              <li><span class="check"></span>UFO</li>
+              <li><span class="check"></span>TV4</li>
+              <li><span class="check"></span>TV7</li>
+              <li><span class="check"></span>TV8</li>
+              <li class="new">+ New playlist</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="features" aria-labelledby="features-title">
+        <h2 id="features-title">What it does</h2>
+        <div class="grid">
+          <article>
+            <h3>Real-time filter</h3>
+            <p>
+              Type to filter. Diacritics-insensitive. <kbd>Esc</kbd> clears the field.
+              The <em>New playlist</em> option always stays visible.
+            </p>
+          </article>
+          <article>
+            <h3>Looks native</h3>
+            <p>
+              The field mirrors YouTube's typography, spacing, border-radius and
+              theme by reading computed styles from sibling elements. Light and
+              dark mode work without configuration.
+            </p>
+          </article>
+          <article>
+            <h3>Works in multiple places</h3>
+            <p>
+              The Save-to-playlist popup (under any video, in search, in your library),
+              the Playlists library at <code>/feed/playlists</code>, and YouTube Music's
+              add-to-playlist dialog.
+            </p>
+          </article>
+          <article>
+            <h3>Survives redesigns</h3>
+            <p>
+              Layered selector fallbacks (semantic tag → ID → ARIA role → structural
+              heuristic) keep the extension working when YouTube ships new markup.
+              No class-name pinning.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="how" id="how" aria-labelledby="how-title">
+        <h2 id="how-title">How it works</h2>
+        <p>
+          A content script watches the DOM with a single
+          <code>MutationObserver</code> and hooks YouTube's SPA navigation events.
+          When it sees a playlist list — either inside the Save-to popup or on
+          <code>/feed/playlists</code> — it injects a search input above the list
+          and filters items by their label as you type. Filtering is purely a
+          <code>classList.toggle</code>; YouTube's own selection and scroll
+          behavior keep working untouched.
+        </p>
+        <p>
+          The extension uses <strong>zero permissions</strong>, talks to no
+          servers, and stores nothing. The full source is one ~10&nbsp;KB
+          JavaScript file. Read it before you install.
+        </p>
+      </section>
+
+      <section class="install" id="install" aria-labelledby="install-title">
+        <h2 id="install-title">Install</h2>
+        <ol>
+          <li>
+            <a href="https://github.com/nimitbhargava/youtube-playlist-search" rel="noopener">
+              Download the repo
+            </a>
+            (or <code>git clone</code> it).
+          </li>
+          <li>Open <code>chrome://extensions</code> in Chrome.</li>
+          <li>Turn on <strong>Developer mode</strong> (top right toggle).</li>
+          <li>
+            Click <strong>Load unpacked</strong> and select the
+            <code>extension/</code> folder.
+          </li>
+          <li>Open any YouTube tab and start saving videos.</li>
+        </ol>
+        <p class="aside">
+          A Chrome Web Store listing is on the way. In the meantime, loading
+          unpacked is the fastest path — no review, no waiting.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Built by
+        <a href="https://github.com/nimitbhargava" rel="noopener">@nimitbhargava</a>.
+        MIT licensed. Not affiliated with YouTube or Google.
+      </p>
+    </footer>
+
+    <script>
+      // Tiny typing demo for the hero. No external deps.
+      (() => {
+        const queryEl = document.getElementById('demoQuery');
+        const list = document.getElementById('demoList');
+        const items = Array.from(list.querySelectorAll('li:not(.new)'));
+        const labels = items.map((li) => li.textContent.toLowerCase());
+        const phrases = ['tv', 'music', 'science', 'watch', ''];
+
+        function apply(q) {
+          queryEl.textContent = q;
+          items.forEach((li, i) => {
+            li.classList.toggle('hidden', q.length > 0 && !labels[i].includes(q));
+          });
+        }
+
+        async function loop() {
+          while (true) {
+            for (const phrase of phrases) {
+              for (let i = 0; i <= phrase.length; i++) {
+                apply(phrase.slice(0, i));
+                await sleep(110);
+              }
+              await sleep(1100);
+              for (let i = phrase.length; i >= 0; i--) {
+                apply(phrase.slice(0, i));
+                await sleep(45);
+              }
+              await sleep(350);
+            }
+          }
+        }
+
+        function sleep(ms) {
+          return new Promise((r) => setTimeout(r, ms));
+        }
+
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) loop();
+      })();
+    </script>
+  </body>
+</html>
