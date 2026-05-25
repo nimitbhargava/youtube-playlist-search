@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] — 2026-05-26
+
+### Changed
+- Page search aligns with the chip row: bump field height `36px → 40px` (was a few pixels shorter than the chips, leaving it visibly off-center), add `align-self: center` on the search container, and add `box-sizing: border-box` so the border doesn't inflate the height past 40 px.
+
 ## [1.0.12] — 2026-05-26
 
 ### Changed

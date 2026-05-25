@@ -114,17 +114,19 @@
   margin: 0 8px 0 0;
   max-width: 320px;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .ytps-search-container.ytps-page .ytps-field {
-  height: 36px;
-  padding: 0 14px;
+  height: 40px;
+  padding: 0 16px;
   border-radius: 999px;
   background: var(
     --yt-spec-badge-chip-background,
     var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.1))
   );
   border: 1px solid var(--yt-spec-10-percent-layer, rgba(255, 255, 255, 0.1));
+  box-sizing: border-box;
 }
 
 .ytps-search-container.ytps-page .ytps-field:focus-within {
