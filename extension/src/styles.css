@@ -117,9 +117,9 @@
 }
 
 .ytps-search-container.ytps-page .ytps-field {
-  height: 32px;
+  height: 36px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(
     --yt-spec-badge-chip-background,
     var(--yt-spec-general-background-a, rgba(255, 255, 255, 0.1))
