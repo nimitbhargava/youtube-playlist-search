@@ -57,11 +57,30 @@ function makePNG(size, drawPixel) {
   ]);
 }
 
+// Per-size transparent border. The 128 px icon is also the Chrome Web Store
+// thumbnail, and CWS recommends ~16 px of padding around 128 so the artwork
+// sits in a centred 96x96. The toolbar sizes (16/32/48) stay full-bleed.
+// At 16 px there is no room for padding, and a padded 32/48 reads as a
+// tiny dot in the toolbar.
+const PADDING_BY_SIZE = { 128: 16 };
+
 // YouTube red rounded square with white magnifying glass.
 function pixel(x, y, size) {
-  const s = size;
-  const cx = (x + 0.5) / s;
-  const cy = (y + 0.5) / s;
+  const padding = PADDING_BY_SIZE[size] || 0;
+  const inner = size - padding * 2;
+  if (
+    x < padding ||
+    x >= padding + inner ||
+    y < padding ||
+    y >= padding + inner
+  ) {
+    return [0, 0, 0, 0];
+  }
+  const lx = x - padding;
+  const ly = y - padding;
+  const s = inner;
+  const cx = (lx + 0.5) / s;
+  const cy = (ly + 0.5) / s;
 
   // Rounded square mask (radius 22% of side).
   const r = 0.22;

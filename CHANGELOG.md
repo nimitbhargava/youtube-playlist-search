@@ -2,6 +2,12 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.17] - 2026-05-27
+
+### Changed
+- 128 px icon now uses ~16 px of transparent padding on every side so the artwork sits in a centred 96×96 area. Matches Chrome Web Store thumbnail guidance, so the store-listing thumbnail no longer fills edge to edge. 16/32/48 toolbar icons stay full-bleed (no padding) so they remain readable at small sizes.
+- Manifest `description` rewritten to be benefit-led and to name all three surfaces the extension touches (Save-to dialog, library, Music) plus the zero-permissions differentiator. Was: "Adds a real-time search to YouTube's Save to playlist dialog. Matches native YouTube design and adapts to UI changes." Now: "Real-time search for your YouTube playlists in the Save-to dialog, library, and Music. Native look. Zero permissions." Still under the 132-char store limit. Becomes the short summary shown under the extension name in store search.
+
 ## [1.0.16] — 2026-05-26
 
 ### Fixed

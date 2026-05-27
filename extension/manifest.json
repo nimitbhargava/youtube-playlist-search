@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "YouTube Playlist Search",
-  "version": "1.0.16",
-  "description": "Adds a real-time search to YouTube's Save to playlist dialog. Matches native YouTube design and adapts to UI changes.",
+  "version": "1.0.17",
+  "description": "Real-time search for your YouTube playlists in the Save-to dialog, library, and Music. Native look. Zero permissions.",
   "content_scripts": [
     {
       "matches": [
