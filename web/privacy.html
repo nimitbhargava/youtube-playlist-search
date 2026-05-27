@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy · YouTube Playlist Search</title>
+    <meta
+      name="description"
+      content="Privacy policy for the YouTube Playlist Search Chrome extension. Zero data collection, zero network requests, zero storage."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="icon128.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">
+        <img src="icon128.png" alt="" width="28" height="28" />
+        <span>YouTube Playlist Search</span>
+      </a>
+      <nav>
+        <a href="/#install">Install</a>
+        <a href="/#how">How it works</a>
+        <a class="github" href="https://github.com/nimitbhargava/youtube-playlist-search" rel="noopener">
+          GitHub
+        </a>
+      </nav>
+    </header>
+
+    <main class="legal">
+      <h1>Privacy Policy</h1>
+      <p class="meta">YouTube Playlist Search · Last updated 26 May 2026</p>
+
+      <p>
+        This page describes how the <strong>YouTube Playlist Search</strong>
+        Chrome extension ("the extension") handles your data. The short version:
+        it doesn't. The extension collects nothing, stores nothing, and sends
+        nothing to any server.
+      </p>
+
+      <h2>Who we are</h2>
+      <p>
+        The extension is published by Nimit Bhargava, an individual developer.
+        Questions about this policy can be sent to
+        <a href="mailto:nimitbhargava@gmail.com">nimitbhargava@gmail.com</a>.
+      </p>
+
+      <h2>What the extension does</h2>
+      <p>
+        The extension injects a search field into three places on YouTube: the
+        Save-to-playlist popup, the Playlists library page at
+        <code>youtube.com/feed/playlists</code>, and YouTube Music's
+        add-to-playlist dialog. As you type into the field, the list of
+        playlists already shown on the page is filtered to match your query.
+        All filtering happens locally in your browser, against the playlist
+        names already visible to you on the YouTube page.
+      </p>
+
+      <h2>Data the extension handles</h2>
+      <p>
+        The extension reads the names of your playlists from the YouTube page's
+        DOM in order to filter them as you type. This is the same information
+        that is already visible to you on screen. The extension does
+        <strong>not</strong> collect, store, or transmit:
+      </p>
+      <ul>
+        <li>Personally identifiable information.</li>
+        <li>Your Google or YouTube account information.</li>
+        <li>The contents of any video.</li>
+        <li>Your search history, watch history, or browsing history.</li>
+        <li>Authentication tokens, cookies, or session data.</li>
+        <li>Your IP address or device identifiers.</li>
+        <li>Your location.</li>
+        <li>Analytics, telemetry, error reports, or any usage data.</li>
+      </ul>
+
+      <h2>Where data is stored and sent</h2>
+      <p>
+        <strong>Nowhere.</strong> The extension keeps no local storage, no
+        cookies, no IndexedDB, and no sync state. It makes no network requests
+        of any kind. There is no server, no third-party API, and no analytics
+        endpoint to call. Everything happens inside the YouTube tab as you type.
+      </p>
+
+      <h2>Permissions</h2>
+      <p>
+        The extension declares
+        <strong>no Chrome permissions</strong> in its manifest. No
+        <code>storage</code>, no <code>tabs</code>, no <code>activeTab</code>,
+        no host permissions. It runs only inside YouTube pages
+        (<code>youtube.com</code>, <code>m.youtube.com</code>,
+        <code>music.youtube.com</code>) as a content script declared in the
+        manifest. It cannot read other tabs, other sites, or anything outside
+        these YouTube pages.
+      </p>
+
+      <h2>Data sharing</h2>
+      <p>
+        There is no data to share. The extension communicates with no third
+        party. It does not sell, trade, transfer, or otherwise share any
+        information, because no information ever leaves your browser.
+      </p>
+
+      <h2>Data retention and deletion</h2>
+      <p>
+        The extension retains no data, so there is nothing to delete. Uninstall
+        the extension from <code>chrome://extensions</code> at any time to
+        remove it completely.
+      </p>
+
+      <h2>Limited Use disclosure</h2>
+      <div class="disclosure">
+        <p>
+          Our use of data received through this extension complies with the
+          <a href="https://developer.chrome.com/docs/webstore/program-policies/limited-use" rel="noopener">Chrome Web Store User Data Policy</a>,
+          including the Limited Use requirements. The extension does not
+          collect or transmit user data, is not used for advertising, and is
+          not used or transferred for creditworthiness or lending purposes.
+        </p>
+      </div>
+
+      <h2>Children</h2>
+      <p>
+        The extension is a general-audience tool. Because it does not collect
+        any information at all, it does not knowingly collect information from
+        children.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        This policy may be updated as the extension changes. Material changes
+        will be reflected by an updated "last updated" date above. If the
+        extension ever begins handling user data in a way this page does not
+        describe, this page will be updated <em>before</em> that change ships.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        For any privacy question, contact
+        <a href="mailto:nimitbhargava@gmail.com">nimitbhargava@gmail.com</a>
+        or open an issue on
+        <a href="https://github.com/nimitbhargava/youtube-playlist-search" rel="noopener">GitHub</a>.
+      </p>
+    </main>
+
+    <footer>
+      <div class="links">
+        <a href="/">Home</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="https://github.com/nimitbhargava/youtube-playlist-search" rel="noopener">GitHub</a>
+      </div>
+      <p>
+        Built by
+        <a href="https://github.com/nimitbhargava" rel="noopener">@nimitbhargava</a>.
+        MIT licensed. Not affiliated with YouTube or Google.
+      </p>
+    </footer>
+  </body>
+</html>

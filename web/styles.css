@@ -381,6 +381,80 @@ section h2 {
   max-width: 720px;
 }
 
+/* --- Legal pages (privacy, terms) ----------------------------------- */
+.legal {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.legal h1 {
+  font-size: clamp(32px, 4.5vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+
+.legal .meta {
+  margin: 0 0 32px;
+  color: var(--dim);
+  font-size: 14px;
+}
+
+.legal h2 {
+  font-size: 20px;
+  margin: 40px 0 8px;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+
+.legal p,
+.legal ul,
+.legal ol {
+  margin: 0 0 16px;
+}
+
+.legal ul,
+.legal ol {
+  padding-left: 22px;
+}
+
+.legal li {
+  margin: 6px 0;
+}
+
+.legal a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+.legal a:hover {
+  text-decoration-color: var(--muted);
+}
+
+.legal .disclosure {
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 20px;
+  margin: 28px 0;
+}
+
+.legal .disclosure p {
+  margin: 0;
+  color: var(--text);
+}
+
+.legal strong {
+  color: var(--text);
+}
+
 /* --- Footer --------------------------------------------------------- */
 footer {
   border-top: 1px solid var(--border);
@@ -389,6 +463,23 @@ footer {
   text-align: center;
   font-size: 14px;
   color: var(--dim);
+}
+
+footer .links {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+footer .links a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer .links a:hover {
+  color: var(--text);
 }
 
 footer a {
