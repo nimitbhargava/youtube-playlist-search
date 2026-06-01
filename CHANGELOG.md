@@ -2,6 +2,15 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.18] - 2026-06-01
+
+### Added
+- New-playlist title prefill in the Save-to dialog. Type a query, get no match, and click YouTube's "New playlist" button: the native create dialog now opens with your query already in the title field (selected, so one keystroke replaces it or one click on Create accepts it), and the Create button is enabled immediately. The query is captured the moment the create control is clicked, since the save-to popup can be torn down as the create dialog opens. We never click Create for you. Works across desktop, mobile, and Music via structural dialog detection (header phrase "New playlist" / "Create playlist", with a Create-button fallback for redesigned markup); the title field is set through the native value setter plus dispatched `input`/`change` events so YouTube's data binding registers it.
+- Hardening on the prefill path (from an adversarial code review): the click capture only runs inside a popup and ignores selectable playlist rows, so a playlist a user happened to name "New playlist ..." is never mistaken for the create button; the armed query clears on navigation; the create-control matcher also recognizes "Create new playlist"; and the next-frame re-assert only refills when the field is still empty and focused, so it never fights a user who is already typing.
+
+### Fixed
+- Double scrollbar in the Save-to popup when the window is constrained (e.g. fullscreen). The search field was inserted as a sibling above the playlist list; when the list is its own scroll container, that added height to a height-bounded parent, so the parent scrolled (outer bar) while the list still scrolled (inner bar). Now `placeSearchUI` detects when the list owns the Y-overflow and injects the search inside it as the sticky first child, leaving a single scroll container. Placement is decided from the declared `overflow-y` (not live `scrollHeight`) so it is correct regardless of whether all rows have mounted yet, and only when the list stacks its children vertically (a row/grid scroller falls back to the old sibling placement so the search never lands in a single cell).
+
 ## [1.0.17] - 2026-05-27
 
 ### Changed

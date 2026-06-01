@@ -36,6 +36,16 @@
     'add video to playlist',
   ];
 
+  // Header phrases for YouTube's "New playlist" creation dialog. When the user
+  // triggers create from our search with a query typed, we pre-fill the title
+  // field with that query so they don't retype what they just searched for.
+  const CREATE_HEADER_PHRASES = [
+    'new playlist',
+    'create playlist',
+    'create new playlist',
+    'name your playlist',
+  ];
+
   // --- Page strategies: full pages with playlist grids -------------------
   const PAGE_STRATEGIES = [
     {
@@ -97,6 +107,32 @@
     if (!el || !el.isConnected) return false;
     const rect = el.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
+  }
+
+  // Does this element scroll its own overflow on the Y axis? We test the
+  // declared overflow (not the live scrollHeight) so the answer is the same
+  // whether the list has finished loading items or not. This matters because we
+  // decide search placement at inject time, before all rows may have mounted.
+  function isScrollableY(el) {
+    if (!el) return false;
+    const oy = getComputedStyle(el).overflowY;
+    return oy === 'auto' || oy === 'scroll' || oy === 'overlay';
+  }
+
+  // True when the element stacks its children vertically (block, flow-root,
+  // table, list-item, or a column flexbox). A row flexbox or a grid would lay a
+  // block child out as a single cell beside the first item, which is wrong for
+  // our full-width sticky header, so we only adopt first-child insertion when
+  // this is true.
+  function isVerticalFlow(el) {
+    const cs = getComputedStyle(el);
+    const d = cs.display;
+    if (d === 'flex' || d === 'inline-flex') {
+      const dir = cs.flexDirection || 'row';
+      return dir === 'column' || dir === 'column-reverse';
+    }
+    if (d === 'grid' || d === 'inline-grid') return false;
+    return true;
   }
 
   function normalize(s) {
@@ -161,7 +197,8 @@
     if (item.id && /create|new/i.test(item.id)) return true;
     if (item.matches?.('#create-playlist-button, [id*="create" i]')) return true;
     const txt = normalize(item.textContent || '');
-    return /^(\+\s*)?(new|create)\s+playlist/.test(txt);
+    // Matches "New playlist", "Create playlist", and "Create new playlist".
+    return /^(\+\s*)?(new\s+playlist|create(\s+new)?\s+playlist)/.test(txt);
   }
 
   // --- Structural modal detection (tag-name-independent) -----------------
@@ -502,6 +539,25 @@
   }
 
   // --- Injectors ----------------------------------------------------------
+  // Place the search field so it shares ONE scroll container with the list.
+  // If the list is itself the scroller, the search must go INSIDE it as the
+  // sticky first child. Inserting it as a sibling above would add height to a
+  // height-bounded parent, producing a second (outer) scrollbar that shows up
+  // when the popup is constrained (e.g. fullscreen). Otherwise the parent is
+  // the scroller, so inserting before the list keeps the search inside it.
+  // Returns the element the items live in (unchanged) for the caller's ctx.
+  function placeSearchUI(searchUI, list) {
+    // Adopt the inside-as-sticky-first-child layout only when the list is its
+    // own scroller AND stacks children vertically. A row/grid scroller would
+    // render our block container as one cell beside the first item, so fall
+    // back to the sibling-above placement there.
+    if (isScrollableY(list) && isVerticalFlow(list)) {
+      list.insertBefore(searchUI, list.firstChild);
+    } else {
+      list.parentElement?.insertBefore(searchUI, list);
+    }
+  }
+
   function injectIntoModal(modal, strategy) {
     if (!modal || !modal.isConnected) return;
     if (modal.querySelector(`.${CONTAINER_CLASS}`)) return;
@@ -513,7 +569,7 @@
     if (!list) return;
 
     const searchUI = buildSearchUI('Search your playlists', 'No matching playlists');
-    list.parentElement?.insertBefore(searchUI, list);
+    placeSearchUI(searchUI, list);
     applyAdaptiveTheme(searchUI, modal);
 
     console.info('[ytps] modal search injected via', modal.tagName.toLowerCase());
@@ -540,7 +596,7 @@
 
     const searchUI = buildSearchUI('Search your playlists', 'No matching playlists');
     searchUI.setAttribute(STRUCTURAL_MARKER_ATTR, '');
-    list.parentElement?.insertBefore(searchUI, list);
+    placeSearchUI(searchUI, list);
     applyAdaptiveTheme(searchUI, popup);
 
     console.info(
@@ -561,11 +617,14 @@
       {
         // Do NOT filter by isVisible — items we've hidden ourselves would be
         // excluded from subsequent reads, so clearing the filter wouldn't
-        // restore them.
+        // restore them. Exclude our own search container, which becomes a child
+        // of the list when the list is the scroll container (see placeSearchUI).
         getItems: () =>
           itemSelector
             ? Array.from(list.querySelectorAll(itemSelector))
-            : Array.from(list.children),
+            : Array.from(list.children).filter(
+                (c) => !c.classList.contains(CONTAINER_CLASS)
+              ),
         getLabel: getStructuralLabel,
         isAlwaysVisible: isCreatePlaylistItem,
         observeNode: list,
@@ -714,6 +773,206 @@
     );
   }
 
+  // --- New-playlist title prefill ----------------------------------------
+  // When the user types a query, finds no match, and clicks "New playlist", we
+  // carry that query into YouTube's native create dialog so they don't have to
+  // retype what they just searched for. The query is captured at click time
+  // (the save-to popup may be torn down as the create dialog opens), held
+  // briefly, then dropped into the dialog's title field once it appears.
+  let pendingTitle = null; // { value: string, expires: number }
+  const PENDING_TTL_MS = 4000;
+
+  // A selectable playlist row carries a checked state (you toggle membership).
+  // The create button does not. We use that to reject a playlist a user happened
+  // to NAME "New playlist ...", which would otherwise match the create text.
+  const SELECTABLE_ROW_SELECTOR = '[role="menuitemcheckbox"], [aria-checked]';
+
+  // Walk up from a clicked node looking for a create-playlist control. Capped
+  // depth keeps us near the click target (inside the popup), so we never read
+  // the textContent of large unrelated containers.
+  function findCreateControlFrom(start) {
+    let el = start;
+    for (let i = 0; el && i < 8; i++) {
+      if (el.nodeType === 1 && isCreatePlaylistItem(el)) {
+        // Inside a selectable row means this is a real (possibly oddly named)
+        // playlist option, not the create button.
+        if (el.closest?.(SELECTABLE_ROW_SELECTOR)) return null;
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  // Capture-phase click listener: read the live query synchronously before any
+  // teardown. Cheap pre-filter first: the create control only ever lives inside
+  // a popup, so we skip the ancestor walk for the vast majority of clicks
+  // (player, thumbnails, comments). An empty query clears any stale pending.
+  function onCreateClickCapture(e) {
+    const target = e.target;
+    if (!target || typeof target.closest !== 'function') return;
+    const popup = target.closest(POPUP_SELECTOR);
+    if (!popup) return;
+    if (!findCreateControlFrom(target)) return;
+    const input =
+      popup.querySelector(`.${INPUT_CLASS}`) ||
+      document.querySelector(`.${INPUT_CLASS}`);
+    const q = input && typeof input.value === 'string' ? input.value.trim() : '';
+    pendingTitle = q ? { value: q, expires: Date.now() + PENDING_TTL_MS } : null;
+  }
+
+  // Drive from the same observer/poll as the search scans. Cheap no-op unless a
+  // create was just triggered with a query.
+  function scanCreateDialog() {
+    if (!pendingTitle) return;
+    if (pendingTitle.expires < Date.now()) {
+      pendingTitle = null;
+      return;
+    }
+    const popups = Array.from(
+      document.querySelectorAll(POPUP_SELECTOR)
+    ).filter(isVisible);
+    for (const popup of popups) {
+      if (!isCreateDialog(popup)) continue;
+      const field = findTitleField(popup);
+      if (!field) continue;
+      const value = pendingTitle.value;
+      pendingTitle = null; // consume once
+      fillTitleField(field, value);
+      console.info('[ytps] prefilled new-playlist title:', JSON.stringify(value));
+      // Re-assert once next frame in case the framework re-rendered the field
+      // empty right after mount. Guarded so it never fights the user: only when
+      // the field is still empty AND still focused (the framework cleared it,
+      // not the user moving on), and we re-set the value without stealing focus
+      // or re-selecting.
+      requestAnimationFrame(() => {
+        if (!field.isConnected) return;
+        if (getFieldValue(field).trim()) return;
+        if (document.activeElement !== field) return;
+        setFieldValue(field, value);
+      });
+      return;
+    }
+  }
+
+  function isCreateDialog(popup) {
+    const header = normalize(getPopupHeader(popup));
+    // The save-to popup is also a visible popup; never treat it as the create
+    // dialog (it has no title field to fill anyway).
+    if (HEADER_PHRASES.some((p) => header.startsWith(p))) return false;
+    if (CREATE_HEADER_PHRASES.some((p) => header.startsWith(p))) return true;
+    // Fallback for redesigned markup: a non-save popup with a fillable title
+    // field and an explicit "Create" button is almost certainly the dialog.
+    const hasCreateBtn = Array.from(
+      popup.querySelectorAll('button, [role="button"], tp-yt-paper-button, yt-button-shape')
+    ).some((b) => isVisible(b) && normalize(b.textContent) === 'create');
+    return hasCreateBtn && !!findTitleField(popup);
+  }
+
+  // Find the playlist-title field in the create dialog. Prefer a field whose
+  // placeholder/label/id hints "title"/"name"; else the first empty text field.
+  // Never our own search input, and never a field the user has already typed in.
+  function findTitleField(popup) {
+    const candidates = Array.from(
+      popup.querySelectorAll(
+        'input, textarea, [contenteditable="true"], [contenteditable=""]'
+      )
+    );
+    let firstEmpty = null;
+    for (const el of candidates) {
+      if (el.classList.contains(INPUT_CLASS)) continue;
+      if (el.closest(`.${CONTAINER_CLASS}`)) continue;
+      if (!isVisible(el)) continue;
+      if (getFieldValue(el).trim()) continue;
+      const hint = normalize(
+        [
+          el.getAttribute('placeholder'),
+          el.getAttribute('aria-label'),
+          el.getAttribute('name'),
+          el.getAttribute('id'),
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+      if (/title|name/.test(hint)) return el;
+      if (!firstEmpty) firstEmpty = el;
+    }
+    return firstEmpty;
+  }
+
+  function fillTitleField(el, value) {
+    setFieldValue(el, value);
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      try {
+        el.focus();
+      } catch {
+        // focus is best-effort
+      }
+    }
+    selectAll(el);
+  }
+
+  // Set the value so YouTube's data binding registers it. For native inputs we
+  // go through the prototype value setter then dispatch native input/change.
+  // Assigning .value directly leaves the framework's model stale, so the
+  // (otherwise disabled) Create button would never enable.
+  function isFormControl(el) {
+    return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+  }
+
+  // Read the current value uniformly. Note: el.isContentEditable is true for a
+  // plain input nested in a contenteditable region, so prefer the form-control
+  // path when the element is itself an input/textarea.
+  function getFieldValue(el) {
+    if (isFormControl(el)) return el.value || '';
+    if (el.isContentEditable) return el.textContent || '';
+    return el.value || '';
+  }
+
+  function setFieldValue(el, value) {
+    // contenteditable host (and not a form control nested inside one).
+    if (!isFormControl(el) && el.isContentEditable) {
+      el.textContent = value;
+      el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
+    const proto =
+      el instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+    const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+    if (desc && desc.set) desc.set.call(el, value);
+    else el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // Select the whole value so the user can replace it with one keystroke or
+  // accept it with one click on Create. Prefer the form-control selection API;
+  // fall back to a DOM range only for true contenteditable hosts.
+  function selectAll(el) {
+    try {
+      if (typeof el.setSelectionRange === 'function') {
+        el.setSelectionRange(0, (el.value || '').length);
+      } else if (typeof el.select === 'function') {
+        el.select();
+      } else if (el.isContentEditable) {
+        const sel = window.getSelection && window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+    } catch {
+      // Selection is a nicety; some input types reject setSelectionRange.
+    }
+  }
+
   // --- Scanners -----------------------------------------------------------
   function scanModals(root = document) {
     let injected = false;
@@ -767,9 +1026,24 @@
     });
   }
 
+  // Coalesce create-dialog scans to one run per frame, and only while a query
+  // is actually pending. The create dialog mounting fires many mutations; an
+  // unthrottled scan would re-run getBoundingClientRect-heavy popup checks on
+  // each one for the whole pending window.
+  let createScanScheduled = false;
+  function scheduleCreateScan() {
+    if (!pendingTitle || createScanScheduled) return;
+    createScanScheduled = true;
+    requestAnimationFrame(() => {
+      createScanScheduled = false;
+      scanCreateDialog();
+    });
+  }
+
   function scanAll(root = document) {
     scanModals(root);
     scanPages();
+    scanCreateDialog();
   }
 
   // --- Diagnostic helper exposed on window -------------------------------
@@ -867,6 +1141,7 @@
   const rootObserver = new MutationObserver(() => {
     scheduleModalScan();
     schedulePageScan();
+    scheduleCreateScan();
   });
 
   rootObserver.observe(document.documentElement, {
@@ -874,8 +1149,17 @@
     subtree: true,
   });
 
+  // Capture the typed query the instant a create-playlist control is clicked,
+  // before the save-to popup can be torn down. Capture phase, read-only: we
+  // only read state and never call preventDefault, so YouTube's own click
+  // handling is untouched.
+  document.addEventListener('click', onCreateClickCapture, true);
+
   document.addEventListener('yt-navigate-finish', () => scanAll());
   document.addEventListener('yt-navigate-start', () => {
+    // Drop any armed query so it can't carry across a navigation into an
+    // unrelated create dialog.
+    pendingTitle = null;
     document.querySelectorAll(`[${PAGE_MARKER_ATTR}]`).forEach((el) => el.remove());
   });
 
@@ -888,5 +1172,6 @@
       scanModals(document);
     }
     scanPages();
+    scanCreateDialog();
   }, 500);
 })();
