@@ -218,24 +218,39 @@
     for (const popup of popups) {
       if (!isVisible(popup)) continue;
       if (popup.querySelector(`.${CONTAINER_CLASS}`)) continue;
-      const header = getPopupHeader(popup);
-      const headerNorm = normalize(header);
-      if (!HEADER_PHRASES.some((p) => headerNorm.startsWith(p))) continue;
 
+      // Find the row list first, then require a matching title that lives
+      // OUTSIDE it. Order matters: a generic action menu's "Save to ..." rows
+      // would otherwise be read as the title and the box would leak onto it.
       const listInfo = findListInPopup(popup);
       if (!listInfo) continue;
+
+      const header = getPopupHeader(popup, listInfo.list);
+      const headerNorm = normalize(header);
+      if (!HEADER_PHRASES.some((p) => headerNorm.startsWith(p))) continue;
 
       return { popup, header, ...listInfo };
     }
     return null;
   }
 
-  function getPopupHeader(popup) {
+  // Read the popup's title. When `excludeList` is given, skip any candidate
+  // inside (or wrapping) that row list: a generic action menu has rows literally
+  // titled "Save to Watch later" / "Save to playlist", and reading one of those
+  // as the popup title is exactly what leaked the search box onto the three-dot
+  // menu. A real Save-to dialog's title sits OUTSIDE its row list, so excluding
+  // the list keeps the genuine title while rejecting menu rows.
+  function getPopupHeader(popup, excludeList) {
+    const inList = (el) =>
+      excludeList &&
+      (el === excludeList || excludeList.contains(el) || el.contains(excludeList));
+
     // Heuristic: the first short text node near the top of the popup.
     const headingCandidates = popup.querySelectorAll(
       'h1, h2, h3, h4, [role="heading"], yt-formatted-string, span, div'
     );
     for (const el of headingCandidates) {
+      if (inList(el)) continue;
       if (!isVisible(el)) continue;
       const text = (el.textContent || '').trim();
       if (!text) continue;
@@ -244,6 +259,10 @@
       if (lines.length !== 1) continue;
       return lines[0];
     }
+    // Skip the whole-popup text fallback when a list was excluded: that
+    // fallback would read the excluded rows back in and reintroduce the false
+    // match. A popup with no heading outside its list is not a Save-to dialog.
+    if (excludeList) return '';
     // Fallback: first line of the popup's text.
     const all = (popup.textContent || '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
     return all[0] || '';
@@ -973,8 +992,68 @@
     }
   }
 
+  // --- Teardown -----------------------------------------------------------
+  const ITEM_PATTERN_SELECTOR = ITEM_PATTERNS.join(', ');
+
+  // Does the popup show a Save-to title that is NOT one of the playlist rows?
+  // This is the durable signal we re-check to keep a box: it survives the user
+  // filtering the list down to zero matches (which hides the rows), yet still
+  // rejects a generic action menu whose only "Save to ..." texts ARE rows.
+  function hasSaveToTitle(popup) {
+    const candidates = popup.querySelectorAll(
+      'h1, h2, h3, h4, [role="heading"], yt-formatted-string, span, div'
+    );
+    for (const el of candidates) {
+      if (el.closest(ITEM_PATTERN_SELECTOR)) continue; // a row, not a title
+      if (!isVisible(el)) continue;
+      const text = (el.textContent || '').trim();
+      if (!text || text.length > 80) continue;
+      const lines = text.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (lines.length !== 1) continue;
+      const n = normalize(lines[0]);
+      if (HEADER_PHRASES.some((p) => n.startsWith(p))) return true;
+    }
+    return false;
+  }
+
+  // Is this popup currently hosting the Save-to-playlist dialog? Used to decide
+  // whether a previously-injected box should stay. Explicit save-to renderers
+  // are always the dialog; otherwise require a Save-to title outside the rows.
+  function popupHostsSaveTo(popup) {
+    if (
+      popup.querySelector(
+        'ytd-add-to-playlist-renderer, ytmusic-add-to-playlist-renderer'
+      )
+    ) {
+      return true;
+    }
+    return hasSaveToTitle(popup);
+  }
+
+  // Remove a popup search box once its host popup is no longer the Save-to
+  // dialog: the popup was hidden/closed, or YouTube reused the same dropdown
+  // element for a different menu (e.g. the three-dot action menu). Without this,
+  // a box injected into a real Save-to popup (or one that slipped in during the
+  // popup's incremental mount) lingers on the wrong menu. Page boxes
+  // (.ytps-page) are managed by scanPages() and left alone here.
+  function pruneStalePopupSearch() {
+    const boxes = document.querySelectorAll(
+      `.${CONTAINER_CLASS}:not(.ytps-page)`
+    );
+    for (const box of boxes) {
+      const popup = box.closest(POPUP_SELECTOR);
+      if (!popup || !isVisible(popup) || !popupHostsSaveTo(popup)) {
+        box.remove();
+      }
+    }
+  }
+
   // --- Scanners -----------------------------------------------------------
   function scanModals(root = document) {
+    // Clear out any box stranded on a popup that is no longer the Save-to
+    // dialog before deciding what (if anything) to inject this pass.
+    pruneStalePopupSearch();
+
     let injected = false;
     for (const strat of MODAL_STRATEGIES) {
       if (root.matches && root.matches(strat.modal) && isVisible(root)) {

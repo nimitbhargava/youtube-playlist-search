@@ -2,6 +2,11 @@
 
 All notable changes to the **YouTube Playlist Search** Chrome extension are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.19] - 2026-06-05
+
+### Fixed
+- The "Search your playlists" field no longer leaks onto YouTube's generic three-dot action menu (Add to queue / Save to Watch later / Save to playlist / Download / Share / Report). Two causes, both fixed. (1) The structural popup detector read the first short text found anywhere in a popup as its title, so the action menu's own "Save to Watch later" and "Save to playlist" rows could satisfy the "save to" gate. This fired when those rows mounted before "Add to queue" (an incremental-mount race that leaves the field pinned to the top of the finished menu) or on menu surfaces that have no "Add to queue" row first. The gate now finds the row list first and requires a matching title that sits OUTSIDE that list, which a real Save-to dialog has and an action menu (whose only "Save to ..." texts are rows) does not. (2) Nothing ever removed an injected field, so a field placed correctly in a real Save-to popup was stranded when YouTube reused the same dropdown element for another menu. A new teardown pass (`pruneStalePopupSearch`) removes any popup search field whose host popup is no longer the Save-to dialog (closed, hidden, or reused). It keeps the field while you filter the list down to zero matches by re-checking the durable Save-to title instead of the live row count, so an empty result set never tears the search away. Reproduced and verified in a headless-Chrome harness across action-menu, redesigned-popup, reuse, and filter-to-zero scenarios.
+
 ## [1.0.18] - 2026-06-01
 
 ### Added
